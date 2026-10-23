@@ -1,7 +1,8 @@
 import { requireRecruiter } from "../../../lib/auth";
+import AdminShell from "../admin-shell";
 
 export default async function JobsPage() {
-  const { supabase } = await requireRecruiter();
+  const { recruiter, supabase } = await requireRecruiter();
 
   const { data: jobs } = await supabase
     .from("jobs")
@@ -9,7 +10,7 @@ export default async function JobsPage() {
     .order("updated_at", { ascending: false });
 
   return (
-    <>
+    <AdminShell recruiter={recruiter}>
       <header className="admin-header">
         <div>
           <p className="eyebrow">Jobs</p>
@@ -38,6 +39,6 @@ export default async function JobsPage() {
           </div>
         )}
       </section>
-    </>
+    </AdminShell>
   );
 }

@@ -13,6 +13,8 @@ import {
   createInterviewCalendarEvent,
   createTask,
   saveCandidateSubmission,
+  saveOffer,
+  savePlacement,
   sendCandidateEmail,
   updateApplicationStage,
   updateCandidate,
@@ -80,7 +82,7 @@ export default async function CandidateDetailPage({ params }) {
 
   const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }, { data: communications }] = await Promise.all([
     supabase.from("applications")
-      .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at), submission:candidate_submissions(id,status,recruiter_summary,key_strengths,compensation,availability,work_authorization,visa_sponsorship,relocation,location_preference,notice_period,client_notes,submitted_at,updated_at), client_feedback(id,feedback_type,feedback,reason,next_step,received_at)")
+      .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at), submission:candidate_submissions(id,status,recruiter_summary,key_strengths,compensation,availability,work_authorization,visa_sponsorship,relocation,location_preference,notice_period,client_notes,submitted_at,updated_at), client_feedback(id,feedback_type,feedback,reason,next_step,received_at), offers(id,status,base_salary,bonus,total_comp,currency,equity,sign_on_bonus,start_date,expiration_date,notes,extended_at,responded_at,created_at,updated_at), placement:placements(id,offer_id,start_date,placed_compensation,currency,fee_type,fee_percentage,estimated_fee,final_fee,invoice_status,invoice_date,payment_date,guarantee_end_date,notes,updated_at)")
       .eq("candidate_id", id)
       .order("updated_at", { ascending:false }),
     supabase.from("candidate_notes")
@@ -425,6 +427,122 @@ export default async function CandidateDetailPage({ params }) {
                     ))}
                   {!app.client_feedback?.length ? <p className="muted">No client feedback yet.</p> : null}
                 </div>
+              </div>
+
+              <div className="offer-section">
+                <div className="section-heading compact-heading">
+                  <div>
+                    <strong>Offer & placement</strong>
+                    <p className="muted">Track offer terms, acceptance, start date and placement fee.</p>
+                  </div>
+                  {app.placement ? <span className="placement-pill">Placed</span> : null}
+                </div>
+
+                <div className="offer-history">
+                  {(app.offers || [])
+                    .sort((a,b) => new Date(b.created_at) - new Date(a.created_at))
+                    .map((offer) => (
+                      <form action={saveOffer} className="offer-card" key={offer.id}>
+                        <input type="hidden" name="application_id" value={app.id} />
+                        <input type="hidden" name="offer_id" value={offer.id} />
+                        <div className="offer-card-header">
+                          <strong>{offer.status === "draft" ? "Offer draft" : `Offer · ${offer.status}`}</strong>
+                          <span className={`offer-status ${offer.status}`}>{offer.status}</span>
+                        </div>
+
+                        <div className="offer-grid">
+                          <label>Base salary<input name="base_salary" type="number" step="0.01" defaultValue={offer.base_salary ?? ""} /></label>
+                          <label>Bonus<input name="bonus" type="number" step="0.01" defaultValue={offer.bonus ?? ""} /></label>
+                          <label>Total comp<input name="total_comp" type="number" step="0.01" defaultValue={offer.total_comp ?? ""} /></label>
+                          <label>Sign-on<input name="sign_on_bonus" type="number" step="0.01" defaultValue={offer.sign_on_bonus ?? ""} /></label>
+                          <label>Currency<input name="currency" defaultValue={offer.currency || "USD"} /></label>
+                          <label>Start date<input name="start_date" type="date" defaultValue={offer.start_date || ""} /></label>
+                          <label>Expiration<input name="expiration_date" type="date" defaultValue={offer.expiration_date || ""} /></label>
+                          <label>Status
+                            <select name="status" defaultValue={offer.status}>
+                              <option value="draft">Draft</option>
+                              <option value="extended">Extended</option>
+                              <option value="accepted">Accepted</option>
+                              <option value="declined">Declined</option>
+                              <option value="withdrawn">Withdrawn</option>
+                            </select>
+                          </label>
+                          <label className="full-span">Equity<input name="equity" defaultValue={offer.equity || ""} placeholder="Equity / options / RSUs" /></label>
+                          <label className="full-span">Notes<textarea name="notes" rows="2" defaultValue={offer.notes || ""} /></label>
+                        </div>
+                        <button type="submit">Save offer</button>
+                      </form>
+                    ))}
+
+                  <form action={saveOffer} className="offer-card new-offer-card">
+                    <input type="hidden" name="application_id" value={app.id} />
+                    <div className="offer-card-header">
+                      <strong>New offer</strong>
+                    </div>
+                    <div className="offer-grid">
+                      <label>Base salary<input name="base_salary" type="number" step="0.01" /></label>
+                      <label>Bonus<input name="bonus" type="number" step="0.01" /></label>
+                      <label>Total comp<input name="total_comp" type="number" step="0.01" /></label>
+                      <label>Sign-on<input name="sign_on_bonus" type="number" step="0.01" /></label>
+                      <label>Currency<input name="currency" defaultValue="USD" /></label>
+                      <label>Start date<input name="start_date" type="date" /></label>
+                      <label>Expiration<input name="expiration_date" type="date" /></label>
+                      <label>Status
+                        <select name="status" defaultValue="draft">
+                          <option value="draft">Draft</option>
+                          <option value="extended">Extended</option>
+                          <option value="accepted">Accepted</option>
+                          <option value="declined">Declined</option>
+                          <option value="withdrawn">Withdrawn</option>
+                        </select>
+                      </label>
+                      <label className="full-span">Equity<input name="equity" placeholder="Equity / options / RSUs" /></label>
+                      <label className="full-span">Notes<textarea name="notes" rows="2" /></label>
+                    </div>
+                    <button type="submit">Create offer</button>
+                  </form>
+                </div>
+
+                {app.placement ? (
+                  <form action={savePlacement} className="placement-form">
+                    <input type="hidden" name="application_id" value={app.id} />
+                    <div className="section-heading compact-heading">
+                      <div>
+                        <strong>Placement record</strong>
+                        <p className="muted">Fee, invoice and start-date tracking.</p>
+                      </div>
+                    </div>
+                    <div className="placement-grid">
+                      <label>Start date<input name="start_date" type="date" defaultValue={app.placement.start_date || ""} /></label>
+                      <label>Placed compensation<input name="placed_compensation" type="number" step="0.01" defaultValue={app.placement.placed_compensation ?? ""} /></label>
+                      <label>Currency<input name="currency" defaultValue={app.placement.currency || "USD"} /></label>
+                      <label>Fee type
+                        <select name="fee_type" defaultValue={app.placement.fee_type || ""}>
+                          <option value="">Select</option>
+                          <option value="percentage">Percentage</option>
+                          <option value="flat">Flat fee</option>
+                        </select>
+                      </label>
+                      <label>Fee %<input name="fee_percentage" type="number" step="0.01" defaultValue={app.placement.fee_percentage ?? ""} /></label>
+                      <label>Estimated fee<input name="estimated_fee" type="number" step="0.01" defaultValue={app.placement.estimated_fee ?? ""} /></label>
+                      <label>Final fee<input name="final_fee" type="number" step="0.01" defaultValue={app.placement.final_fee ?? ""} /></label>
+                      <label>Invoice status
+                        <select name="invoice_status" defaultValue={app.placement.invoice_status || "not_invoiced"}>
+                          <option value="not_invoiced">Not invoiced</option>
+                          <option value="invoiced">Invoiced</option>
+                          <option value="paid">Paid</option>
+                          <option value="adjusted">Adjusted</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </label>
+                      <label>Invoice date<input name="invoice_date" type="date" defaultValue={app.placement.invoice_date || ""} /></label>
+                      <label>Payment date<input name="payment_date" type="date" defaultValue={app.placement.payment_date || ""} /></label>
+                      <label>Guarantee end<input name="guarantee_end_date" type="date" defaultValue={app.placement.guarantee_end_date || ""} /></label>
+                      <label className="full-span">Notes<textarea name="notes" rows="2" defaultValue={app.placement.notes || ""} /></label>
+                    </div>
+                    <button type="submit">Save placement</button>
+                  </form>
+                ) : null}
               </div>
 
               <div className="interview-section">

@@ -6,9 +6,11 @@ import { gmailComposeUrl, googleCalendarUrl, mailtoUrl } from "../../communicati
 import { getGoogleConnection } from "../../../../lib/google";
 import CopySubmissionButton from "../../copy-submission-button";
 import CopyPortalLinkButton from "../../copy-portal-link-button";
+import CopyPortalInviteButton from "../../copy-portal-invite-button";
 import {
   addCandidateNote,
   addClientFeedback,
+  addCandidatePortalUpdate,
   attachCandidateToJob,
   createInterview,
   createCandidatePortalAccess,
@@ -17,6 +19,7 @@ import {
   saveCandidateSubmission,
   saveOffer,
   savePlacement,
+  hideCandidatePortalUpdate,
   revokeCandidatePortalAccess,
   setPrimaryCandidateResume,
   assignApplicationResume,
@@ -89,7 +92,7 @@ export default async function CandidateDetailPage({ params, searchParams }) {
 
   const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }, { data: communications }, { data: documents }] = await Promise.all([
     supabase.from("applications")
-      .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, resume_document_id, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at), submission:candidate_submissions(id,status,recruiter_summary,key_strengths,compensation,availability,work_authorization,visa_sponsorship,relocation,location_preference,notice_period,client_notes,submitted_at,updated_at), client_feedback(id,feedback_type,feedback,reason,next_step,received_at), offers(id,status,base_salary,bonus,total_comp,currency,equity,sign_on_bonus,start_date,expiration_date,notes,extended_at,responded_at,created_at,updated_at), placement:placements(id,offer_id,start_date,placed_compensation,currency,fee_type,fee_percentage,estimated_fee,final_fee,invoice_status,invoice_date,payment_date,guarantee_end_date,notes,updated_at), portal_access:candidate_portal_access(id,expires_at,revoked_at,created_at)")
+      .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, resume_document_id, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at), submission:candidate_submissions(id,status,recruiter_summary,key_strengths,compensation,availability,work_authorization,visa_sponsorship,relocation,location_preference,notice_period,client_notes,submitted_at,updated_at), client_feedback(id,feedback_type,feedback,reason,next_step,received_at), offers(id,status,base_salary,bonus,total_comp,currency,equity,sign_on_bonus,start_date,expiration_date,notes,extended_at,responded_at,created_at,updated_at), placement:placements(id,offer_id,start_date,placed_compensation,currency,fee_type,fee_percentage,estimated_fee,final_fee,invoice_status,invoice_date,payment_date,guarantee_end_date,notes,updated_at), portal_access:candidate_portal_access(id,expires_at,revoked_at,created_at), portal_updates:candidate_portal_updates(id,update_type,title,body,visible,created_at)")
       .eq("candidate_id", id)
       .order("updated_at", { ascending:false }),
     supabase.from("candidate_notes")
@@ -395,7 +398,35 @@ export default async function CandidateDetailPage({ params, searchParams }) {
 
                 <div className="candidate-portal-admin-actions">
                   {query?.portal_token && query?.portal_app === app.id ? (
-                    <CopyPortalLinkButton url={`https://jvrecruiter.xyz/portal/${query.portal_token}`} />
+                    <>
+                      <CopyPortalLinkButton url={`https://jvrecruiter.xyz/portal/${query.portal_token}`} />
+                      <CopyPortalInviteButton
+                        candidateName={candidate.full_name}
+                        roleTitle={app.job.title}
+                        portalUrl={`https://jvrecruiter.xyz/portal/${query.portal_token}`}
+                      />
+                      {candidate.email ? (
+                        <a
+                          className="secondary-button"
+                          href={mailtoUrl({
+                            to: candidate.email,
+                            subject: `Your JVRecruit application portal — ${app.job.title}`,
+                            body: [
+                              `Hi ${candidate.full_name.split(" ")[0]},`,
+                              "",
+                              `I created a private JVRecruit portal for your ${app.job.title} application.`,
+                              "You can use it to check your application status, view upcoming interviews, update your information or résumé, and withdraw from the process if needed.",
+                              "",
+                              `https://jvrecruiter.xyz/portal/${query.portal_token}`,
+                              "",
+                              "Please keep this link private."
+                            ].join("\n")
+                          })}
+                        >
+                          Email invitation
+                        </a>
+                      ) : null}
+                    </>
                   ) : null}
 
                   <form action={createCandidatePortalAccess}>
@@ -411,6 +442,56 @@ export default async function CandidateDetailPage({ params, searchParams }) {
                       <button type="submit" className="danger-button">Revoke</button>
                     </form>
                   ) : null}
+                </div>
+              </div>
+
+              <div className="portal-update-admin">
+                <div className="section-heading compact-heading">
+                  <div>
+                    <strong>Candidate updates</strong>
+                    <p className="muted">Publish a message that appears inside this candidate’s portal.</p>
+                  </div>
+                </div>
+
+                <form action={addCandidatePortalUpdate} className="portal-update-form">
+                  <input type="hidden" name="application_id" value={app.id} />
+                  <label>Type
+                    <select name="update_type" defaultValue="status">
+                      <option value="status">Status update</option>
+                      <option value="next_step">Next step</option>
+                      <option value="interview">Interview</option>
+                      <option value="resume_request">Résumé request</option>
+                      <option value="general">General message</option>
+                    </select>
+                  </label>
+                  <label>Title
+                    <input name="title" required placeholder="Your application is under review" />
+                  </label>
+                  <label className="full-span">Message
+                    <textarea name="body" rows="3" placeholder="Optional candidate-facing message..." />
+                  </label>
+                  <button type="submit">Publish update</button>
+                </form>
+
+                <div className="portal-update-list">
+                  {(app.portal_updates || [])
+                    .filter((item) => item.visible)
+                    .sort((a,b) => new Date(b.created_at) - new Date(a.created_at))
+                    .map((item) => (
+                      <article className="portal-update-row" key={item.id}>
+                        <div>
+                          <span>{item.update_type.replaceAll("_"," ")}</span>
+                          <strong>{item.title}</strong>
+                          {item.body ? <p>{item.body}</p> : null}
+                          <time>{new Date(item.created_at).toLocaleString("en-US", { timeZone:"America/Puerto_Rico", dateStyle:"short", timeStyle:"short" })}</time>
+                        </div>
+                        <form action={hideCandidatePortalUpdate}>
+                          <input type="hidden" name="update_id" value={item.id} />
+                          <button type="submit" className="secondary-button">Hide</button>
+                        </form>
+                      </article>
+                    ))}
+                  {!app.portal_updates?.some((item) => item.visible) ? <p className="muted">No candidate-facing updates yet.</p> : null}
                 </div>
               </div>
 

@@ -6,9 +6,11 @@ import {
   addCandidateNote,
   attachCandidateToJob,
   createInterview,
+  createTask,
   updateApplicationStage,
   updateCandidate,
-  updateInterview
+  updateInterview,
+  updateTaskStatus
 } from "../../actions";
 
 const STAGES = ["Applied","Prescreen","Submitted","Client Sub","Interviewing","Offer","Placed","Rejected","Withdrawn","Archived"];
@@ -45,7 +47,7 @@ export default async function CandidateDetailPage({ params }) {
   const { data: candidate } = await supabase.from("candidates").select("*").eq("id", id).maybeSingle();
   if (!candidate) notFound();
 
-  const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }] = await Promise.all([
+  const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }] = await Promise.all([
     supabase.from("applications")
       .select("id, stage, interview_stage, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, created_at, updated_at)")
       .eq("candidate_id", id)
@@ -62,7 +64,12 @@ export default async function CandidateDetailPage({ params }) {
       .select("id, activity_type, details, created_at")
       .eq("candidate_id", id)
       .order("created_at", { ascending:false })
-      .limit(20)
+      .limit(20),
+    supabase.from("tasks")
+      .select("id,title,task_type,priority,status,due_at,job:jobs(id,title)")
+      .eq("candidate_id", id)
+      .order("status", { ascending:true })
+      .order("due_at", { ascending:true, nullsFirst:false })
   ]);
 
   const existingJobIds = new Set((applications || []).map((a) => a.job?.id));
@@ -137,6 +144,58 @@ export default async function CandidateDetailPage({ params }) {
             <button type="submit">Add to role</button>
           </form>
         ) : <p className="muted">No additional active roles available.</p>}
+      </section>
+
+      <section className="panel top-gap">
+        <div className="section-heading">
+          <div>
+            <h2>Follow-ups</h2>
+            <p className="muted">Create and complete recruiter tasks for this candidate.</p>
+          </div>
+        </div>
+
+        <form action={createTask} className="task-create-form compact-task-form">
+          <input type="hidden" name="candidate_id" value={candidate.id} />
+          <label>Type
+            <select name="task_type" defaultValue="follow_up_candidate">
+              <option value="follow_up_candidate">Follow up candidate</option>
+              <option value="schedule_interview">Schedule interview</option>
+              <option value="send_submission">Send submission</option>
+              <option value="check_feedback">Check feedback</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>Task<input name="title" required placeholder="Follow up with candidate" /></label>
+          <label>Priority
+            <select name="priority" defaultValue="medium">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <label>Due<input name="due_at" type="datetime-local" /></label>
+          <button type="submit">Add task</button>
+        </form>
+
+        <div className="task-list compact-task-list">
+          {(tasks || []).map((task) => (
+            <article className="task-row" key={task.id}>
+              <div className="task-main">
+                <div className="task-title-line">
+                  <strong>{task.title}</strong>
+                  <span className={`priority-pill ${task.priority}`}>{task.priority}</span>
+                </div>
+                <span>{[task.job?.title, task.task_type.replaceAll("_", " "), task.due_at ? new Date(task.due_at).toLocaleString("en-US", { timeZone: "America/Puerto_Rico", dateStyle: "short", timeStyle: "short" }) : null].filter(Boolean).join(" · ")}</span>
+              </div>
+              <form action={updateTaskStatus}>
+                <input type="hidden" name="task_id" value={task.id} />
+                <input type="hidden" name="status" value={task.status === "done" ? "open" : "done"} />
+                <button type="submit" className={task.status === "done" ? "secondary-button" : ""}>{task.status === "done" ? "Reopen" : "Done"}</button>
+              </form>
+            </article>
+          ))}
+          {!tasks?.length ? <p className="muted">No follow-ups yet.</p> : null}
+        </div>
       </section>
 
       <section className="panel top-gap">

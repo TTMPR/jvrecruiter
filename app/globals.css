@@ -148,3 +148,18 @@ button,select,textarea{font:inherit}
 .interview-actions form{margin:0}
 .interview-actions form button{width:auto}
 @media(max-width:900px){.integration-card{flex-direction:column}.integration-capabilities{grid-template-columns:1fr}}
+
+.submission-section{margin-top:14px;padding:16px;border:1px solid #dbe2dc;border-radius:14px;background:#fbfcfa}
+.submission-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.submission-form label{display:grid;gap:5px;font-size:12px;font-weight:700}
+.submission-form input,.submission-form textarea{width:100%;border:1px solid #cfd6d1;border-radius:9px;background:white;padding:9px 10px}
+.submission-form .full-span{grid-column:1/-1}
+.submission-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.submission-actions button:not(.secondary-button){border:0;border-radius:9px;background:#102d35;color:white;padding:10px 13px;font-weight:800;cursor:pointer}
+.submission-status{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:4px 8px;border:1px solid #d7ddd8;font-size:11px;font-weight:800;text-transform:capitalize}
+.submission-status.draft{background:#f2f4f1;color:#617168}
+.submission-status.ready{background:#fff4e8;color:#87510f;border-color:#efd1a9}
+.submission-status.submitted{background:#e8f4ec;color:#245e3f;border-color:#b9d8c2}
+.submission-row{align-items:flex-start}
+.submission-row-meta{display:flex!important;gap:6px!important;align-items:flex-end!important;text-align:right}
+@media(max-width:700px){.submission-form{grid-template-columns:1fr}.submission-form .full-span{grid-column:auto}.submission-actions{align-items:stretch}.submission-actions>*{width:100%}.submission-row-meta{align-items:flex-start!important;text-align:left}}

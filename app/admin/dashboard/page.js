@@ -25,7 +25,7 @@ export default async function DashboardPage() {
     { data: activities },
     { data: intake },
     { data: tasks },
-    { data: placements }
+    { data: placementRecords }
   ] = await Promise.all([
     supabase.from("jobs")
       .select("id,title,status,client_name,updated_at")
@@ -65,7 +65,7 @@ export default async function DashboardPage() {
   const candidatesThisWeek = (candidates || []).filter((candidate) => new Date(candidate.created_at).getTime() >= weekAgo).length;
   const interviewing = (applications || []).filter((app) => app.stage === "Interviewing").length;
   const offers = (applications || []).filter((app) => app.stage === "Offer").length;
-  const placements = (applications || []).filter((app) => app.stage === "Placed").length;
+  const placedApplications = (applications || []).filter((app) => app.stage === "Placed").length;
   const upcoming = (interviews || []).filter((interview) => interview.scheduled_at && new Date(interview.scheduled_at).getTime() >= now).slice(0, 6);
 
   const aging = (applications || [])
@@ -107,16 +107,16 @@ export default async function DashboardPage() {
   const overdueTasks = taskRows.filter((task) => task.dueKey && task.dueKey < todayKey);
   const attentionTasks = [...overdueTasks, ...dueToday].slice(0, 8);
 
-  const totalEstimatedFees = (placements || []).reduce((sum, item) => sum + Number(item.estimated_fee || 0), 0);
-  const totalFinalFees = (placements || []).reduce((sum, item) => sum + Number(item.final_fee || 0), 0);
-  const unpaidPlacements = (placements || []).filter((item) => item.invoice_status !== "paid").length;
+  const totalEstimatedFees = (placementRecords || []).reduce((sum, item) => sum + Number(item.estimated_fee || 0), 0);
+  const totalFinalFees = (placementRecords || []).reduce((sum, item) => sum + Number(item.final_fee || 0), 0);
+  const unpaidPlacements = (placementRecords || []).filter((item) => item.invoice_status !== "paid").length;
 
   const metrics = [
     ["Active roles", (jobs || []).length],
     ["New candidates · 7d", candidatesThisWeek],
     ["Interviewing", interviewing],
     ["Offers", offers],
-    ["Placements", placements],
+    ["Placements", placedApplications],
     ["Website intake", (intake || []).length],
     ["Due today", dueToday.length],
     ["Placement fees", totalFinalFees ? `${Math.round(totalFinalFees).toLocaleString()}` : totalEstimatedFees ? `Est. ${Math.round(totalEstimatedFees).toLocaleString()}` : "$0"]
@@ -205,7 +205,7 @@ export default async function DashboardPage() {
         </div>
 
         <div className="placement-dashboard-list">
-          {(placements || []).slice(0,6).map((placement) => (
+          {(placementRecords || []).slice(0,6).map((placement) => (
             <Link
               className="dashboard-item"
               href={placement.application?.candidate?.id ? `/admin/candidates/${placement.application.candidate.id}` : "/admin/candidates"}
@@ -221,7 +221,7 @@ export default async function DashboardPage() {
               </div>
             </Link>
           ))}
-          {!placements?.length ? <p className="muted">No placements recorded yet.</p> : null}
+          {!placementRecords?.length ? <p className="muted">No placements recorded yet.</p> : null}
         </div>
       </section>
 

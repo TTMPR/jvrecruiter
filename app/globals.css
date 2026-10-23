@@ -464,3 +464,8 @@ button,select,textarea{font:inherit}
 .portal-update-feed p{margin:0;color:#617168;line-height:1.55}
 .portal-update-feed time{font-size:11px;color:#8a948e}
 @media(max-width:700px){.portal-update-form{grid-template-columns:1fr}.portal-update-form .full-span{grid-column:auto}.portal-update-row{flex-direction:column}.portal-update-feed article{grid-template-columns:1fr;gap:5px}}
+
+.public-post-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.public-post-actions button:not(.secondary-button){border:0;border-radius:10px;background:#102d35;color:white;padding:10px 14px;font-weight:800;cursor:pointer}
+.publish-readiness{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:11px 12px;border:1px solid #efd1a9;background:#fff4e8;color:#87510f;border-radius:10px;font-size:12px}
+.required-label{display:inline-flex;margin-left:6px;font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.08em;color:#8a3028}

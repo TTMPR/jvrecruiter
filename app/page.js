@@ -24,30 +24,85 @@ export default async function HomePage() {
         </nav>
       </header>
 
-      <section className="hero">
-        <p className="eyebrow">Confidential search</p>
-        <h1>Find your next opportunity without the noise.</h1>
-        <p className="lede">
-          Curated technical, product, data and leadership opportunities with a thoughtful recruiting experience.
-        </p>
-        <p className="affiliation">Current searches managed through Towerhill Associates.</p>
+      <section className="hero candidate-hero">
+        <div className="hero-copy">
+          <p className="eyebrow">Thoughtful recruiting, fewer distractions</p>
+          <h1>Find your next opportunity without the noise.</h1>
+          <p className="lede">
+            Curated technical, product, data and leadership opportunities with a simple, direct recruiting experience.
+          </p>
+          <div className="hero-actions">
+            <a className="primary-button" href="#roles">Explore open roles</a>
+            <a className="secondary-button" href="#network">Join talent network</a>
+          </div>
+          <p className="affiliation">Current searches managed through Towerhill Associates.</p>
+        </div>
+
+        <aside className="candidate-promise" aria-label="What candidates can expect">
+          <span className="promise-number">01</span>
+          <strong>Clear opportunities.</strong>
+          <p>See the role, location and key details before you apply.</p>
+          <span className="promise-number">02</span>
+          <strong>Simple application.</strong>
+          <p>No account creation and no long application portal.</p>
+          <span className="promise-number">03</span>
+          <strong>Human follow-up.</strong>
+          <p>If there’s alignment, the recruiter reaches out directly.</p>
+        </aside>
       </section>
 
       <section id="roles" className="public-section">
-        <p className="eyebrow">Open roles</p>
-        <h2>Current opportunities.</h2>
-        <div className="role-list">
+        <div className="public-section-heading">
+          <div>
+            <p className="eyebrow">Open roles</p>
+            <h2>Current opportunities.</h2>
+          </div>
+          <p>Every role below is an active search. Company names may remain confidential until there is mutual alignment.</p>
+        </div>
+        <div className="role-list candidate-role-list">
           {(roles || []).map((role) => (
-            <Link className="role-row" href={`/jobs/${role.slug}`} key={role.job_id}>
-              <div>
+            <Link className="role-row candidate-role-card" href={`/jobs/${role.slug}`} key={role.job_id}>
+              <div className="role-card-copy">
+                <div className="role-card-badges">
+                  {role.workplace ? <span>{role.workplace}</span> : null}
+                  {role.location ? <span>{role.location}</span> : null}
+                  {role.department ? <span>{role.department}</span> : null}
+                </div>
                 <strong>{role.title}</strong>
-                <span>{[role.department, role.location, role.workplace].filter(Boolean).join(" · ")}</span>
                 {role.short_summary ? <RichText value={role.short_summary} className="role-summary" /> : null}
               </div>
-              <span>View role →</span>
+              <span className="role-card-action">View opportunity <span aria-hidden="true">→</span></span>
             </Link>
           ))}
           {!roles?.length ? <p className="muted">No roles are published right now.</p> : null}
+        </div>
+      </section>
+
+      <section className="public-section candidate-process">
+        <div className="public-section-heading">
+          <div>
+            <p className="eyebrow">What to expect</p>
+            <h2>A straightforward process.</h2>
+          </div>
+          <p>You should always know what you’re applying to and what happens next.</p>
+        </div>
+
+        <div className="candidate-process-grid">
+          <article>
+            <span>01</span>
+            <strong>Explore</strong>
+            <p>Review active opportunities and the information available for each search.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <strong>Apply</strong>
+            <p>Share only the essentials. No account, password or repetitive profile setup.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <strong>Connect</strong>
+            <p>If there’s a fit, the recruiter follows up directly with context and next steps.</p>
+          </article>
         </div>
       </section>
 
@@ -55,7 +110,7 @@ export default async function HomePage() {
         <p className="eyebrow">Join my network</p>
         <h2>Not seeing the right role?</h2>
         <p className="lede">
-          Share your background and I can keep your profile available for future searches without applying to a specific position.
+          Share your background once and stay available for future searches without applying to a specific role.
         </p>
         <PublicIntakeForm type="network" />
       </section>

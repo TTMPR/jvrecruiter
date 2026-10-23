@@ -24,7 +24,8 @@ export default async function DashboardPage() {
     { data: interviews },
     { data: activities },
     { data: intake },
-    { data: tasks }
+    { data: tasks },
+    { data: placements }
   ] = await Promise.all([
     supabase.from("jobs")
       .select("id,title,status,client_name,updated_at")
@@ -51,6 +52,10 @@ export default async function DashboardPage() {
       .select("id,title,priority,status,due_at,candidate:candidates(id,full_name),job:jobs(id,title)")
       .eq("status", "open")
       .order("due_at", { ascending:true, nullsFirst:false })
+      .limit(20),
+    supabase.from("placements")
+      .select("id,start_date,placed_compensation,currency,estimated_fee,final_fee,invoice_status,payment_date,application:applications(id,candidate:candidates(id,full_name),job:jobs(id,title))")
+      .order("created_at", { ascending:false })
       .limit(20)
   ]);
 
@@ -102,6 +107,10 @@ export default async function DashboardPage() {
   const overdueTasks = taskRows.filter((task) => task.dueKey && task.dueKey < todayKey);
   const attentionTasks = [...overdueTasks, ...dueToday].slice(0, 8);
 
+  const totalEstimatedFees = (placements || []).reduce((sum, item) => sum + Number(item.estimated_fee || 0), 0);
+  const totalFinalFees = (placements || []).reduce((sum, item) => sum + Number(item.final_fee || 0), 0);
+  const unpaidPlacements = (placements || []).filter((item) => item.invoice_status !== "paid").length;
+
   const metrics = [
     ["Active roles", (jobs || []).length],
     ["New candidates · 7d", candidatesThisWeek],
@@ -109,7 +118,8 @@ export default async function DashboardPage() {
     ["Offers", offers],
     ["Placements", placements],
     ["Website intake", (intake || []).length],
-    ["Due today", dueToday.length]
+    ["Due today", dueToday.length],
+    ["Placement fees", totalFinalFees ? `${Math.round(totalFinalFees).toLocaleString()}` : totalEstimatedFees ? `Est. ${Math.round(totalEstimatedFees).toLocaleString()}` : "$0"]
   ];
 
   return (
@@ -184,6 +194,36 @@ export default async function DashboardPage() {
           </div>
         </section>
       </div>
+
+      <section className="panel top-gap">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Placements</p>
+            <h2>Revenue & starts</h2>
+          </div>
+          <span className="muted">{unpaidPlacements} open invoice{unpaidPlacements === 1 ? "" : "s"}</span>
+        </div>
+
+        <div className="placement-dashboard-list">
+          {(placements || []).slice(0,6).map((placement) => (
+            <Link
+              className="dashboard-item"
+              href={placement.application?.candidate?.id ? `/admin/candidates/${placement.application.candidate.id}` : "/admin/candidates"}
+              key={placement.id}
+            >
+              <div>
+                <strong>{placement.application?.candidate?.full_name || "Candidate"}</strong>
+                <span>{placement.application?.job?.title || "Role"} · {placement.start_date ? `Starts ${placement.start_date}` : "Start date pending"}</span>
+              </div>
+              <div className="placement-dashboard-meta">
+                <span className={`invoice-pill ${placement.invoice_status}`}>{placement.invoice_status.replaceAll("_"," ")}</span>
+                <strong>{placement.final_fee ? `${Number(placement.final_fee).toLocaleString()}` : placement.estimated_fee ? `Est. ${Number(placement.estimated_fee).toLocaleString()}` : "Fee pending"}</strong>
+              </div>
+            </Link>
+          ))}
+          {!placements?.length ? <p className="muted">No placements recorded yet.</p> : null}
+        </div>
+      </section>
 
       <section className="panel top-gap">
         <div className="section-heading">

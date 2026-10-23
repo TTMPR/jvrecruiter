@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireRecruiter } from "../../../lib/auth";
 import AdminShell from "../admin-shell";
 import { createTask, updateTaskStatus } from "../actions";
+import { gmailComposeUrl } from "../communication-links";
 
 const TYPES = [
   ["follow_up_candidate","Follow up candidate"],
@@ -31,7 +32,7 @@ export default async function TasksPage({ searchParams }) {
 
   const [{ data: tasks }, { data: candidates }, { data: jobs }] = await Promise.all([
     supabase.from("tasks")
-      .select("id,title,notes,task_type,priority,status,due_at,created_at,candidate:candidates(id,full_name),job:jobs(id,title)")
+      .select("id,title,notes,task_type,priority,status,due_at,created_at,candidate:candidates(id,full_name,email),job:jobs(id,title)")
       .order("status", { ascending: true })
       .order("due_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false }),
@@ -133,6 +134,19 @@ export default async function TasksPage({ searchParams }) {
 
                 <div className="task-actions">
                   {task.candidate?.id ? <Link href={`/admin/candidates/${task.candidate.id}`}>Candidate</Link> : null}
+                  {task.candidate?.email ? (
+                    <a
+                      href={gmailComposeUrl({
+                        to: task.candidate.email,
+                        subject: task.title,
+                        body: `Hi ${task.candidate.full_name},\n\n`
+                      })}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Email
+                    </a>
+                  ) : null}
                   {task.job?.id ? <Link href={`/admin/jobs/${task.job.id}`}>Role</Link> : null}
                   <form action={updateTaskStatus}>
                     <input type="hidden" name="task_id" value={task.id} />

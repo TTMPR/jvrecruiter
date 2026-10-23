@@ -22,7 +22,7 @@ export default async function JobDetailPage({ params, searchParams }) {
   const [{ data: job }, { data: applications }, { data: tasks }] = await Promise.all([
     supabase.from("jobs").select("*, job_posts(*)").eq("id", id).maybeSingle(),
     supabase.from("applications")
-      .select("id, stage, interview_stage, applied_at, candidate:candidates(id, full_name, current_title, current_company, location)")
+      .select("id, stage, interview_stage, applied_at, candidate:candidates(id, full_name, current_title, current_company, location), submission:candidate_submissions(id,status,compensation,availability,work_authorization,visa_sponsorship,relocation,submitted_at,updated_at)")
       .eq("job_id", id)
       .order("updated_at", { ascending: false }),
     supabase.from("tasks")
@@ -221,6 +221,42 @@ export default async function JobDetailPage({ params, searchParams }) {
             </article>
           ))}
           {!tasks?.length ? <p className="muted">No role follow-ups yet.</p> : null}
+        </div>
+      </section>
+
+      <section className="panel top-gap">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Client submissions</p>
+            <h2>Submission status</h2>
+          </div>
+        </div>
+
+        <div className="table-list">
+          {(applications || [])
+            .filter((app) => app.submission)
+            .sort((a, b) => {
+              const order = { submitted: 0, ready: 1, draft: 2 };
+              return (order[a.submission.status] ?? 9) - (order[b.submission.status] ?? 9);
+            })
+            .map((app) => (
+              <Link className="table-row submission-row" href={`/admin/candidates/${app.candidate.id}`} key={app.id}>
+                <div>
+                  <strong>{app.candidate.full_name}</strong>
+                  <span>{[app.candidate.current_title, app.candidate.current_company].filter(Boolean).join(" · ")}</span>
+                  <span>
+                    {[app.submission.compensation, app.submission.availability, app.submission.relocation].filter(Boolean).join(" · ")}
+                  </span>
+                </div>
+                <div className="submission-row-meta">
+                  <span className={`submission-status ${app.submission.status}`}>{app.submission.status}</span>
+                  {app.submission.submitted_at ? (
+                    <span>{new Date(app.submission.submitted_at).toLocaleDateString("en-US", { timeZone: "America/Puerto_Rico" })}</span>
+                  ) : null}
+                </div>
+              </Link>
+            ))}
+          {!applications?.some((app) => app.submission) ? <p className="muted">No client submissions prepared yet.</p> : null}
         </div>
       </section>
 

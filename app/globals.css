@@ -374,3 +374,70 @@ button,select,textarea{font:inherit}
 .public-footer>div span{font-size:12px;color:#718079}
 .public-footer>a{font-size:11px;color:#7b8781}
 @media(max-width:650px){.public-footer{align-items:flex-start;flex-direction:column}}
+
+/* Candidate portal */
+.candidate-portal-admin{margin-top:14px;padding:14px 16px;border:1px solid #dbe2dc;border-radius:14px;background:#f8faf8;display:flex;justify-content:space-between;gap:20px;align-items:center}
+.candidate-portal-admin>div:first-child{display:grid;gap:4px}
+.candidate-portal-admin p{margin:0}
+.candidate-portal-admin-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.candidate-portal-admin-actions form{margin:0}
+.portal-access-pill{display:inline-flex;width:max-content;margin-top:4px;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:800;background:#e8f4ec;color:#245e3f}
+.portal-access-pill.revoked{background:#fdebea;color:#8a3028}
+
+.portal-shell{max-width:980px;margin:auto;padding:0 28px;color:#102d35}
+.portal-nav{height:72px;border-bottom:1px solid #d8ddd5;display:flex;justify-content:space-between;align-items:center}
+.portal-nav strong{font-size:18px}
+.portal-nav>a:last-child{font-size:13px;color:#68756f}
+.portal-hero{padding:66px 0 44px}
+.portal-hero h1{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-spacing:-.035em;font-size:clamp(44px,6vw,68px);margin:9px 0 14px;line-height:1}
+.portal-hero>p:not(.eyebrow){max-width:650px;color:#617168;line-height:1.6}
+.portal-status{display:inline-flex;margin-top:14px;border-radius:999px;padding:7px 11px;background:#e8f4ec;color:#245e3f;font-size:11px;font-weight:850}
+.portal-status.withdrawn{background:#f2f4f1;color:#68756f}
+.portal-card{background:#faf9f5;border:1px solid #d8ddd5;border-radius:18px;padding:24px;margin-bottom:18px}
+.portal-section-heading{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:22px}
+.portal-section-heading h2{font-family:Georgia,"Times New Roman",serif;font-size:30px;font-weight:400;margin:4px 0 0}
+.portal-section-heading>span{font-size:11px;color:#7b8781;padding-top:4px}
+.portal-timeline{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.portal-step{padding:14px;border:1px solid #dde2dd;border-radius:12px;background:white;display:grid;grid-template-columns:28px 1fr;gap:10px;opacity:.55}
+.portal-step>span{width:26px;height:26px;border-radius:999px;border:1px solid #ccd5cf;display:grid;place-items:center;font-size:10px;font-weight:800}
+.portal-step>div{display:grid;gap:5px}
+.portal-step strong{font-size:13px}
+.portal-step p{margin:0;font-size:11px;line-height:1.45;color:#718079}
+.portal-step.complete{opacity:1}
+.portal-step.complete>span{background:#e8f4ec;border-color:#b9d8c2;color:#245e3f}
+.portal-step.current{border-color:#9eb3a6;box-shadow:0 0 0 2px rgba(16,45,53,.04)}
+.portal-interviews{display:grid}
+.portal-interviews article{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:14px 0;border-bottom:1px solid #e4e8e4}
+.portal-interviews article:last-child{border-bottom:0}
+.portal-interviews article>div{display:grid;gap:3px}
+.portal-interviews span{font-size:12px;color:#718079}
+.portal-interviews a{border:1px solid #d5dcd7;border-radius:9px;padding:8px 10px;background:white;font-size:12px;font-weight:800}
+.portal-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.portal-form{display:grid;gap:12px}
+.portal-form label{display:grid;gap:5px;font-size:12px;font-weight:750}
+.portal-form input{width:100%;border:1px solid #cfd6d1;border-radius:10px;background:white;padding:11px 12px;min-height:44px}
+.portal-form button{justify-self:start;border:0;border-radius:10px;background:#102d35;color:white;padding:11px 14px;font-weight:800;cursor:pointer}
+.portal-current-resume{display:grid;gap:4px;padding:12px;border:1px solid #e0e5e1;border-radius:11px;background:white;margin-bottom:14px}
+.portal-current-resume span,.form-hint{font-size:11px;color:#718079}
+.form-hint{margin:-4px 0 0}
+.portal-withdraw-card{display:flex;justify-content:space-between;align-items:center;gap:24px}
+.portal-withdraw-card h2{font-family:Georgia,"Times New Roman",serif;font-size:28px;font-weight:400;margin:4px 0 8px}
+.portal-withdraw-card p{margin:0;max-width:590px;color:#68756f;line-height:1.5}
+.portal-withdraw-card form{margin:0}
+.portal-closed-state{display:grid;grid-template-columns:44px 1fr;gap:18px;align-items:start}
+.portal-closed-state>span{width:40px;height:40px;border-radius:999px;background:#e8f4ec;color:#245e3f;display:grid;place-items:center;font-weight:900}
+.portal-closed-state h2{font-family:Georgia,"Times New Roman",serif;font-size:30px;font-weight:400;margin:0 0 8px}
+.portal-closed-state p{margin:0 0 16px;color:#68756f}
+.portal-footer{border-top:1px solid #d8ddd5;padding:28px 0 42px;display:flex;justify-content:space-between;gap:20px;font-size:11px;color:#7b8781}
+@media(max-width:800px){
+  .portal-timeline{grid-template-columns:1fr 1fr}
+  .portal-grid{grid-template-columns:1fr}
+  .candidate-portal-admin{align-items:flex-start;flex-direction:column}
+}
+@media(max-width:560px){
+  .portal-shell{padding:0 20px}
+  .portal-hero{padding:48px 0 34px}
+  .portal-timeline{grid-template-columns:1fr}
+  .portal-section-heading,.portal-withdraw-card,.portal-interviews article,.portal-footer{align-items:flex-start;flex-direction:column}
+  .portal-form button,.portal-withdraw-card button{width:100%}
+}

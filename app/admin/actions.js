@@ -43,7 +43,23 @@ export async function createJob(formData) {
 
   if (error) throw error;
 
-  const slug = `${slugify(title) || "role"}-${job.id.slice(0, 8)}`;
+  const baseSlug = slugify(title) || "role";
+  let slug = baseSlug;
+  let suffix = 2;
+
+  while (true) {
+    const { data: existingSlug, error: slugError } = await supabase
+      .from("job_posts")
+      .select("id")
+      .eq("slug", slug)
+      .maybeSingle();
+
+    if (slugError) throw slugError;
+    if (!existingSlug) break;
+
+    slug = `${baseSlug}-${suffix}`;
+    suffix += 1;
+  }
 
   const { error: postError } = await supabase.from("job_posts").insert({
     job_id: job.id,

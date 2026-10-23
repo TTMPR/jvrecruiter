@@ -135,7 +135,7 @@ export async function addCandidate(formData) {
 }
 
 export async function processIntake(formData) {
-  const { supabase } = await requireRecruiter();
+  const { recruiter, supabase } = await requireRecruiter();
   const intakeId = clean(formData.get("intake_id"));
   if (!intakeId) return;
 
@@ -191,6 +191,42 @@ export async function processIntake(formData) {
     }).eq("id", candidate.id);
   }
 
+  let documentId = null;
+  if (intake.resume_path) {
+    const { data: existingDocument } = await supabase
+      .from("candidate_documents")
+      .select("id")
+      .eq("storage_path", intake.resume_path)
+      .maybeSingle();
+
+    if (existingDocument) {
+      documentId = existingDocument.id;
+    } else {
+      const { data: document, error: documentError } = await supabase
+        .from("candidate_documents")
+        .insert({
+          candidate_id: candidate.id,
+          recruiter_id: recruiter.id,
+          document_type: "resume",
+          file_name: intake.resume_name || "Resume",
+          storage_path: intake.resume_path,
+          mime_type: intake.resume_mime_type,
+          label: "Website application résumé",
+          is_primary: true
+        })
+        .select("id")
+        .single();
+
+      if (documentError) throw documentError;
+      documentId = document.id;
+
+      await supabase.from("candidate_documents")
+        .update({ is_primary: false })
+        .eq("candidate_id", candidate.id)
+        .neq("id", document.id);
+    }
+  }
+
   let applicationId = null;
   if (intake.submission_type === "application" && intake.job_id) {
     const { data: application, error: appError } = await supabase.from("applications")
@@ -199,6 +235,7 @@ export async function processIntake(formData) {
         job_id: intake.job_id,
         stage: "Applied",
         source: "website",
+        resume_document_id: documentId,
         updated_at: new Date().toISOString()
       }, { onConflict: "candidate_id,job_id" })
       .select("id")
@@ -1133,4 +1170,200 @@ export async function savePlacement(formData) {
   revalidatePath(`/admin/candidates/${application.candidate_id}`);
   revalidatePath(`/admin/jobs/${application.job_id}`);
   revalidatePath("/admin/dashboard");
+}
+
+
+function safeStorageName(value) {
+  return String(value || "document")
+    .normalize("NFKD")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 100) || "document";
+}
+
+export async function uploadCandidateDocument(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const candidateId = clean(formData.get("candidate_id"));
+  const documentType = clean(formData.get("document_type")) || "resume";
+  const label = clean(formData.get("label"));
+  const notes = clean(formData.get("notes"));
+  const makePrimary = String(formData.get("make_primary") || "") === "on";
+  const file = formData.get("file");
+
+  if (!candidateId || !["resume","cover_letter","other"].includes(documentType)) return;
+  if (!file || typeof file !== "object" || !file.name || !file.size) return;
+
+  const allowedMime = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ];
+
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error("Document exceeds the 10 MB limit");
+  }
+
+  if (documentType === "resume" && !allowedMime.includes(file.type)) {
+    throw new Error("Résumé must be PDF, DOC, or DOCX");
+  }
+
+  const path = `candidates/${candidateId}/${Date.now()}-${safeStorageName(file.name)}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("resumes")
+    .upload(path, file, {
+      contentType: file.type || "application/octet-stream",
+      upsert: false
+    });
+
+  if (uploadError) throw uploadError;
+
+  const { count } = await supabase
+    .from("candidate_documents")
+    .select("id", { count: "exact", head: true })
+    .eq("candidate_id", candidateId)
+    .eq("document_type", "resume")
+    .eq("is_primary", true);
+
+  const shouldBePrimary = documentType === "resume" && (makePrimary || !count);
+
+  if (shouldBePrimary) {
+    await supabase.from("candidate_documents")
+      .update({ is_primary: false })
+      .eq("candidate_id", candidateId)
+      .eq("document_type", "resume");
+  }
+
+  const { data: document, error: documentError } = await supabase
+    .from("candidate_documents")
+    .insert({
+      candidate_id: candidateId,
+      recruiter_id: recruiter.id,
+      document_type: documentType,
+      file_name: file.name,
+      storage_path: path,
+      mime_type: file.type || null,
+      file_size: file.size,
+      label,
+      notes,
+      is_primary: shouldBePrimary
+    })
+    .select("id")
+    .single();
+
+  if (documentError) {
+    await supabase.storage.from("resumes").remove([path]);
+    throw documentError;
+  }
+
+  if (shouldBePrimary) {
+    const { error: candidateError } = await supabase.from("candidates").update({
+      latest_resume_path: path,
+      latest_resume_name: file.name,
+      latest_resume_mime_type: file.type || null,
+      latest_resume_uploaded_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }).eq("id", candidateId);
+
+    if (candidateError) throw candidateError;
+  }
+
+  await supabase.from("activities").insert({
+    candidate_id: candidateId,
+    actor_id: recruiter.id,
+    activity_type: "document_uploaded",
+    details: { document_id: document.id, document_type: documentType, file_name: file.name, primary: shouldBePrimary }
+  });
+
+  revalidatePath(`/admin/candidates/${candidateId}`);
+}
+
+export async function setPrimaryCandidateResume(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const candidateId = clean(formData.get("candidate_id"));
+  const documentId = clean(formData.get("document_id"));
+  if (!candidateId || !documentId) return;
+
+  const { data: document, error } = await supabase
+    .from("candidate_documents")
+    .select("id,candidate_id,document_type,file_name,storage_path,mime_type")
+    .eq("id", documentId)
+    .eq("candidate_id", candidateId)
+    .single();
+
+  if (error) throw error;
+  if (document.document_type !== "resume") return;
+
+  const { error: clearError } = await supabase.from("candidate_documents")
+    .update({ is_primary: false })
+    .eq("candidate_id", candidateId)
+    .eq("document_type", "resume");
+  if (clearError) throw clearError;
+
+  const { error: setError } = await supabase.from("candidate_documents")
+    .update({ is_primary: true })
+    .eq("id", documentId);
+  if (setError) throw setError;
+
+  const { error: candidateError } = await supabase.from("candidates").update({
+    latest_resume_path: document.storage_path,
+    latest_resume_name: document.file_name,
+    latest_resume_mime_type: document.mime_type,
+    latest_resume_uploaded_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }).eq("id", candidateId);
+  if (candidateError) throw candidateError;
+
+  await supabase.from("activities").insert({
+    candidate_id: candidateId,
+    actor_id: recruiter.id,
+    activity_type: "primary_resume_changed",
+    details: { document_id: documentId }
+  });
+
+  revalidatePath(`/admin/candidates/${candidateId}`);
+}
+
+export async function assignApplicationResume(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const applicationId = clean(formData.get("application_id"));
+  const documentId = clean(formData.get("document_id"));
+  if (!applicationId) return;
+
+  const { data: application, error: appError } = await supabase
+    .from("applications")
+    .select("id,candidate_id,job_id")
+    .eq("id", applicationId)
+    .single();
+  if (appError) throw appError;
+
+  if (documentId) {
+    const { data: document, error: documentError } = await supabase
+      .from("candidate_documents")
+      .select("id,candidate_id,document_type")
+      .eq("id", documentId)
+      .single();
+    if (documentError) throw documentError;
+    if (document.candidate_id !== application.candidate_id || document.document_type !== "resume") {
+      throw new Error("Selected résumé does not belong to this candidate");
+    }
+  }
+
+  const { error } = await supabase.from("applications").update({
+    resume_document_id: documentId,
+    updated_at: new Date().toISOString()
+  }).eq("id", applicationId);
+  if (error) throw error;
+
+  await supabase.from("activities").insert({
+    candidate_id: application.candidate_id,
+    application_id: applicationId,
+    actor_id: recruiter.id,
+    activity_type: "application_resume_assigned",
+    details: { document_id: documentId }
+  });
+
+  revalidatePath(`/admin/candidates/${application.candidate_id}`);
+  revalidatePath(`/admin/jobs/${application.job_id}`);
 }

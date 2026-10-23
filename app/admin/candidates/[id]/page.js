@@ -5,16 +5,19 @@ import AdminShell from "../../admin-shell";
 import { gmailComposeUrl, googleCalendarUrl, mailtoUrl } from "../../communication-links";
 import { getGoogleConnection } from "../../../../lib/google";
 import CopySubmissionButton from "../../copy-submission-button";
+import CopyPortalLinkButton from "../../copy-portal-link-button";
 import {
   addCandidateNote,
   addClientFeedback,
   attachCandidateToJob,
   createInterview,
+  createCandidatePortalAccess,
   createInterviewCalendarEvent,
   createTask,
   saveCandidateSubmission,
   saveOffer,
   savePlacement,
+  revokeCandidatePortalAccess,
   setPrimaryCandidateResume,
   assignApplicationResume,
   uploadCandidateDocument,
@@ -76,8 +79,9 @@ function displayPuertoRicoDate(value) {
   }).format(new Date(value));
 }
 
-export default async function CandidateDetailPage({ params }) {
+export default async function CandidateDetailPage({ params, searchParams }) {
   const { id } = await params;
+  const query = await searchParams;
   const { recruiter, supabase } = await requireRecruiter();
 
   const { data: candidate } = await supabase.from("candidates").select("*").eq("id", id).maybeSingle();
@@ -85,7 +89,7 @@ export default async function CandidateDetailPage({ params }) {
 
   const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }, { data: communications }, { data: documents }] = await Promise.all([
     supabase.from("applications")
-      .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, resume_document_id, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at), submission:candidate_submissions(id,status,recruiter_summary,key_strengths,compensation,availability,work_authorization,visa_sponsorship,relocation,location_preference,notice_period,client_notes,submitted_at,updated_at), client_feedback(id,feedback_type,feedback,reason,next_step,received_at), offers(id,status,base_salary,bonus,total_comp,currency,equity,sign_on_bonus,start_date,expiration_date,notes,extended_at,responded_at,created_at,updated_at), placement:placements(id,offer_id,start_date,placed_compensation,currency,fee_type,fee_percentage,estimated_fee,final_fee,invoice_status,invoice_date,payment_date,guarantee_end_date,notes,updated_at)")
+      .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, resume_document_id, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at), submission:candidate_submissions(id,status,recruiter_summary,key_strengths,compensation,availability,work_authorization,visa_sponsorship,relocation,location_preference,notice_period,client_notes,submitted_at,updated_at), client_feedback(id,feedback_type,feedback,reason,next_step,received_at), offers(id,status,base_salary,bonus,total_comp,currency,equity,sign_on_bonus,start_date,expiration_date,notes,extended_at,responded_at,created_at,updated_at), placement:placements(id,offer_id,start_date,placed_compensation,currency,fee_type,fee_percentage,estimated_fee,final_fee,invoice_status,invoice_date,payment_date,guarantee_end_date,notes,updated_at), portal_access:candidate_portal_access(id,expires_at,revoked_at,created_at)")
       .eq("candidate_id", id)
       .order("updated_at", { ascending:false }),
     supabase.from("candidate_notes")
@@ -372,6 +376,42 @@ export default async function CandidateDetailPage({ params }) {
                   <select name="stage" defaultValue={app.stage}>{STAGES.map((s) => <option key={s}>{s}</option>)}</select>
                   <button type="submit">Update</button>
                 </form>
+              </div>
+
+              <div className="candidate-portal-admin">
+                <div>
+                  <strong>Candidate portal</strong>
+                  <p className="muted">Give the candidate a private status link for this role.</p>
+                  {app.portal_access ? (
+                    <span className={`portal-access-pill ${app.portal_access.revoked_at ? "revoked" : ""}`}>
+                      {app.portal_access.revoked_at
+                        ? "Revoked"
+                        : app.portal_access.expires_at
+                          ? `Active until ${new Date(app.portal_access.expires_at).toLocaleDateString()}`
+                          : "Active"}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="candidate-portal-admin-actions">
+                  {query?.portal_token && query?.portal_app === app.id ? (
+                    <CopyPortalLinkButton url={`https://jvrecruiter.xyz/portal/${query.portal_token}`} />
+                  ) : null}
+
+                  <form action={createCandidatePortalAccess}>
+                    <input type="hidden" name="application_id" value={app.id} />
+                    <button type="submit" className="secondary-button">
+                      {app.portal_access && !app.portal_access.revoked_at ? "Regenerate link" : "Create portal link"}
+                    </button>
+                  </form>
+
+                  {app.portal_access && !app.portal_access.revoked_at ? (
+                    <form action={revokeCandidatePortalAccess}>
+                      <input type="hidden" name="application_id" value={app.id} />
+                      <button type="submit" className="danger-button">Revoke</button>
+                    </form>
+                  ) : null}
+                </div>
               </div>
 
               <div className="role-resume-section">

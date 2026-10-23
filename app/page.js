@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "../lib/supabase/server";
 import PublicIntakeForm from "./public-intake-form";
+import RichText from "./rich-text";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function HomePage() {
               <div>
                 <strong>{role.title}</strong>
                 <span>{[role.department, role.location, role.workplace].filter(Boolean).join(" · ")}</span>
-                {role.short_summary ? <p>{role.short_summary}</p> : null}
+                {role.short_summary ? <RichText value={role.short_summary} className="role-summary" /> : null}
               </div>
               <span>View role →</span>
             </Link>

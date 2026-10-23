@@ -16,3 +16,19 @@ button,select,textarea{font:inherit}
 .publish-actions{display:flex;gap:10px;flex-wrap:wrap}
 .publish-actions form{margin:0}
 .publish-actions form>button:not(.secondary-button):not(.danger-button){border:0;background:#102d35;color:white}
+
+.rich-editor-field{display:grid;gap:7px;font-size:13px;font-weight:700}
+.rich-editor{border:1px solid #cfd6d1;border-radius:12px;background:white;overflow:hidden}
+.rich-toolbar{display:flex;gap:6px;align-items:center;padding:8px;border-bottom:1px solid #e2e7e3;background:#f7f8f6}
+.rich-toolbar button{border:1px solid #d5dcd7;background:white;color:#102d35;border-radius:8px;padding:6px 9px;font-size:12px;font-weight:750;cursor:pointer}
+.rich-toolbar button:hover{background:#eef2ef}
+.rich-editor textarea{width:100%;border:0!important;border-radius:0!important;resize:vertical;outline:none;padding:12px!important;line-height:1.55}
+.format-hint{font-size:11px;color:#7b8781;font-weight:500}
+.rich-text{line-height:1.7;color:#53635d}
+.rich-text p{margin:0 0 14px}
+.rich-text ul,.rich-text ol{margin:8px 0 16px 22px;padding:0}
+.rich-text li{margin:5px 0}
+.rich-text strong{color:#102d35}
+.role-summary{font-size:14px}
+.role-summary p{margin:4px 0 0}
+.role-summary ul,.role-summary ol{margin:6px 0 0 18px}

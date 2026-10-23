@@ -5,11 +5,38 @@ import AdminShell from "../../admin-shell";
 import {
   addCandidateNote,
   attachCandidateToJob,
+  createInterview,
   updateApplicationStage,
-  updateCandidate
+  updateCandidate,
+  updateInterview
 } from "../../actions";
 
 const STAGES = ["Applied","Prescreen","Submitted","Client Sub","Interviewing","Offer","Placed","Rejected","Withdrawn","Archived"];
+const INTERVIEW_STATUSES = ["scheduled","completed","cancelled","no_show"];
+
+function toPuertoRicoInput(value) {
+  if (!value) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Puerto_Rico",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(new Date(value));
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}`;
+}
+
+function displayPuertoRicoDate(value) {
+  if (!value) return "Not scheduled";
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Puerto_Rico",
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
+}
 
 export default async function CandidateDetailPage({ params }) {
   const { id } = await params;
@@ -20,7 +47,7 @@ export default async function CandidateDetailPage({ params }) {
 
   const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }] = await Promise.all([
     supabase.from("applications")
-      .select("id, stage, interview_stage, job:jobs(id,title)")
+      .select("id, stage, interview_stage, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, created_at, updated_at)")
       .eq("candidate_id", id)
       .order("updated_at", { ascending:false }),
     supabase.from("candidate_notes")
@@ -116,16 +143,79 @@ export default async function CandidateDetailPage({ params }) {
         <h2>Processes</h2>
         <div className="table-list">
           {(applications || []).map((app) => (
-            <div className="table-row" key={app.id}>
-              <div>
-                <Link href={`/admin/jobs/${app.job.id}`}><strong>{app.job.title}</strong></Link>
-                <span>{app.interview_stage || app.stage}</span>
+            <div className="process-block" key={app.id}>
+              <div className="table-row">
+                <div>
+                  <Link href={`/admin/jobs/${app.job.id}`}><strong>{app.job.title}</strong></Link>
+                  <span>{app.interview_stage || app.stage}</span>
+                </div>
+                <form action={updateApplicationStage} className="inline-form">
+                  <input type="hidden" name="application_id" value={app.id} />
+                  <select name="stage" defaultValue={app.stage}>{STAGES.map((s) => <option key={s}>{s}</option>)}</select>
+                  <button type="submit">Update</button>
+                </form>
               </div>
-              <form action={updateApplicationStage} className="inline-form">
-                <input type="hidden" name="application_id" value={app.id} />
-                <select name="stage" defaultValue={app.stage}>{STAGES.map((s) => <option key={s}>{s}</option>)}</select>
-                <button type="submit">Update</button>
-              </form>
+
+              <div className="interview-section">
+                <div className="section-heading compact-heading">
+                  <div>
+                    <strong>Interviews</strong>
+                    <p className="muted">Schedule and track each interview step for this process.</p>
+                  </div>
+                </div>
+
+                <form action={createInterview} className="interview-form">
+                  <input type="hidden" name="application_id" value={app.id} />
+                  <label>Step
+                    <select name="stage_name" defaultValue={app.interview_stage || ""} required>
+                      <option value="">Select step</option>
+                      {((app.job.interview_stages || []).length ? app.job.interview_stages : ["Recruiter Screen","Hiring Manager","Panel","Final"]).map((step) => (
+                        <option key={step}>{step}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>Date & time
+                    <input name="scheduled_at" type="datetime-local" />
+                  </label>
+                  <label className="interview-notes-field">Notes
+                    <input name="notes" placeholder="Optional scheduling note" />
+                  </label>
+                  <button type="submit">Schedule interview</button>
+                </form>
+
+                <div className="interview-list">
+                  {(app.interviews || [])
+                    .sort((a, b) => new Date(b.scheduled_at || b.created_at) - new Date(a.scheduled_at || a.created_at))
+                    .map((interview) => (
+                      <form action={updateInterview} className="interview-card" key={interview.id}>
+                        <input type="hidden" name="interview_id" value={interview.id} />
+                        <div className="interview-card-header">
+                          <div>
+                            <strong>{interview.stage_name}</strong>
+                            <span>{displayPuertoRicoDate(interview.scheduled_at)}</span>
+                          </div>
+                          <span className={`interview-status ${interview.status}`}>{interview.status.replace("_", " ")}</span>
+                        </div>
+
+                        <div className="interview-edit-grid">
+                          <label>Step<input name="stage_name" defaultValue={interview.stage_name} required /></label>
+                          <label>Date & time<input name="scheduled_at" type="datetime-local" defaultValue={toPuertoRicoInput(interview.scheduled_at)} /></label>
+                          <label>Status
+                            <select name="status" defaultValue={interview.status}>
+                              {INTERVIEW_STATUSES.map((status) => <option value={status} key={status}>{status.replace("_", " ")}</option>)}
+                            </select>
+                          </label>
+                        </div>
+
+                        <label>Interview notes
+                          <textarea name="notes" rows="3" defaultValue={interview.notes || ""} placeholder="Feedback, outcome, follow-up..." />
+                        </label>
+                        <button type="submit">Save interview</button>
+                      </form>
+                    ))}
+                  {!app.interviews?.length ? <p className="muted">No interviews scheduled yet.</p> : null}
+                </div>
+              </div>
             </div>
           ))}
           {!applications?.length ? <p className="muted">Not currently attached to a role.</p> : null}

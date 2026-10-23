@@ -53,3 +53,25 @@ button,select,textarea{font:inherit}
 .activity-row span{font-size:12px;color:#718079}
 @media(max-width:900px){.filter-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.filter-grid{grid-template-columns:1fr}.candidate-directory-row .candidate-row-meta{align-items:flex-start;text-align:left}}
+
+.process-block{padding:18px 0;border-bottom:1px solid #e4e8e4}
+.process-block:last-child{border-bottom:0}
+.interview-section{margin-top:12px;padding:16px;border:1px solid #e0e5e1;border-radius:14px;background:#fafbf9}
+.compact-heading{margin-bottom:10px}
+.compact-heading p{margin:4px 0 0}
+.interview-form{display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:10px;align-items:end}
+.interview-form label,.interview-card label{display:grid;gap:5px;font-size:12px;font-weight:700}
+.interview-form input,.interview-form select,.interview-card input,.interview-card select,.interview-card textarea{width:100%;border:1px solid #cfd6d1;border-radius:9px;background:white;padding:9px 10px}
+.interview-form button,.interview-card button{border:0;border-radius:9px;background:#102d35;color:white;padding:10px 13px;font-weight:800;cursor:pointer}
+.interview-list{display:grid;gap:10px;margin-top:14px}
+.interview-card{display:grid;gap:10px;padding:14px;border:1px solid #dce2dd;border-radius:12px;background:white}
+.interview-card-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.interview-card-header>div{display:grid;gap:3px}
+.interview-card-header span{font-size:12px;color:#718079}
+.interview-edit-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.interview-status{display:inline-flex!important;align-items:center;padding:4px 8px;border-radius:999px;border:1px solid #d7ddd8;text-transform:capitalize;font-weight:700}
+.interview-status.completed{background:#e8f4ec;color:#245e3f;border-color:#b9d8c2}
+.interview-status.cancelled,.interview-status.no_show{background:#fff4f1;color:#8a3028;border-color:#e5c8c1}
+.interview-status.scheduled{background:#f3f5ef;color:#5c695f}
+@media(max-width:900px){.interview-form{grid-template-columns:1fr 1fr}.interview-notes-field{grid-column:1/-1}.interview-edit-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.interview-form{grid-template-columns:1fr}}

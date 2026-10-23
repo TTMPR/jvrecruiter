@@ -269,3 +269,102 @@ button,select,textarea{font:inherit}
 .role-resume-form{min-width:min(420px,100%)}
 @media(max-width:900px){.document-upload-form{grid-template-columns:1fr 1fr}.document-upload-form .full-span{grid-column:1/-1}.role-resume-section{flex-direction:column;align-items:stretch}.role-resume-form{min-width:0}}
 @media(max-width:600px){.document-upload-form{grid-template-columns:1fr}.document-row{flex-direction:column;align-items:flex-start}.document-actions{width:100%}}
+
+/* Candidate-facing experience */
+.public-nav strong{font-size:18px;letter-spacing:-.02em}
+.public-nav a:focus-visible,.primary-button:focus-visible,.secondary-button:focus-visible,.candidate-form input:focus-visible,.candidate-form button:focus-visible,.candidate-form select:focus-visible{outline:3px solid rgba(16,45,53,.22);outline-offset:3px}
+.candidate-hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.65fr);gap:70px;align-items:end}
+.hero-copy{min-width:0}
+.hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
+.candidate-promise{background:#102d35;color:white;border-radius:18px;padding:26px;display:grid;grid-template-columns:34px 1fr;gap:6px 12px}
+.candidate-promise .promise-number{grid-row:span 2;font-size:11px;color:#9fb1aa;padding-top:3px}
+.candidate-promise strong{font-size:14px}
+.candidate-promise p{margin:0 0 14px;font-size:13px;line-height:1.5;color:#cbd7d3}
+.public-section-heading{display:flex;justify-content:space-between;gap:40px;align-items:end;margin-bottom:30px}
+.public-section-heading h2{margin-bottom:0}
+.public-section-heading>p{max-width:410px;margin:0;color:#68756f;line-height:1.6}
+.candidate-role-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.candidate-role-card{border:1px solid #d8ddd5;border-radius:16px;background:#faf9f5;padding:24px;min-height:230px;align-items:stretch;flex-direction:column}
+.candidate-role-card:hover{border-color:#aebbb2;transform:translateY(-2px);transition:.16s ease}
+.role-card-copy{display:flex!important;flex-direction:column;gap:12px!important}
+.role-card-badges{display:flex!important;flex-wrap:wrap;gap:6px!important}
+.role-card-badges span{display:inline-flex;border:1px solid #d8ddd5;border-radius:999px;padding:4px 8px;font-size:10px!important;background:white}
+.candidate-role-card strong{font-family:Georgia,"Times New Roman",serif;font-size:28px;font-weight:400;line-height:1.08}
+.role-card-action{margin-top:auto;font-weight:800;color:#102d35!important}
+.candidate-process-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.candidate-process-grid article{border-top:1px solid #bdc8c0;padding-top:18px;display:grid;gap:8px}
+.candidate-process-grid article>span{font-size:11px;color:#7b8781}
+.candidate-process-grid article strong{font-size:18px}
+.candidate-process-grid article p{margin:0;color:#68756f;line-height:1.55;font-size:14px}
+
+.candidate-job-detail{padding-top:56px}
+.job-hero-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.55fr);gap:70px;align-items:start;padding-bottom:58px}
+.job-hero-copy h1{margin-top:10px}
+.job-badges{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 22px}
+.job-badges span{border:1px solid #ced6d0;border-radius:999px;padding:6px 10px;background:#faf9f5;font-size:12px;color:#53635d}
+.job-lede{max-width:720px}
+.job-hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
+.job-quick-card,.job-process-card{border:1px solid #d8ddd5;border-radius:16px;background:#faf9f5;padding:22px}
+.job-quick-card strong{display:block;font-family:Georgia,"Times New Roman",serif;font-size:25px;font-weight:400;margin:6px 0 14px}
+.job-quick-card ul{margin:0 0 20px;padding-left:18px;color:#617168;font-size:13px;line-height:1.7}
+.job-quick-card>a{font-weight:800;font-size:13px}
+.job-content-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:60px;align-items:start;border-top:1px solid #d8ddd5}
+.job-main-content section:first-child{border-top:0}
+.job-process-card{position:sticky;top:28px;margin-top:28px}
+.job-process-card ol{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:18px;counter-reset:item}
+.job-process-card li{display:grid;grid-template-columns:24px 1fr;gap:2px 10px;counter-increment:item}
+.job-process-card li:before{content:counter(item);grid-row:span 2;font-size:11px;color:#7b8781;padding-top:2px}
+.job-process-card strong{font-size:13px}
+.job-process-card span{font-size:12px;color:#718079;line-height:1.45}
+.candidate-apply-section{scroll-margin-top:20px;border-top:1px solid #bfc8c1!important;margin-top:30px;padding-top:46px!important}
+.apply-heading{display:flex;justify-content:space-between;gap:34px;align-items:end}
+.apply-heading h2{margin-bottom:0}
+.apply-heading>p{max-width:430px;margin:0;color:#68756f;line-height:1.55}
+
+.candidate-form{max-width:860px!important;margin-top:28px!important;background:#faf9f5;border:1px solid #d8ddd5;border-radius:18px;padding:24px;gap:0!important}
+.candidate-form-intro{display:flex;justify-content:space-between;gap:20px;align-items:start;padding-bottom:20px;border-bottom:1px solid #e1e5df}
+.candidate-form-intro h3{font-family:Georgia,"Times New Roman",serif;font-size:28px;font-weight:400;margin:4px 0 0}
+.candidate-form-intro>span{font-size:11px;font-weight:800;background:#e8f4ec;color:#245e3f;border-radius:999px;padding:6px 9px;white-space:nowrap}
+.candidate-form-section{border:0;padding:22px 0 0;margin:0;display:grid;gap:14px}
+.candidate-form-section+ .candidate-form-section{border-top:1px solid #e1e5df;margin-top:22px}
+.candidate-form-section legend{font-size:12px;font-weight:850;color:#102d35;padding:0;margin-bottom:12px}
+.candidate-form label{font-size:12px}
+.candidate-form input{min-height:46px;border-radius:10px!important}
+.candidate-form input[type="file"]{padding:11px;background:white}
+.optional-label{font-weight:500;color:#8a948e;font-size:10px;margin-left:4px}
+.resume-upload{margin-top:2px}
+.candidate-submit-row{display:flex;align-items:center;gap:18px;padding-top:24px;margin-top:24px;border-top:1px solid #e1e5df}
+.candidate-submit-row button{min-height:48px;padding:12px 20px!important}
+.candidate-submit-row button:disabled{opacity:.65;cursor:wait}
+.candidate-submit-row p{margin:0;max-width:420px;font-size:11px;color:#7b8781;line-height:1.5}
+.form-status{min-height:18px;margin:10px 0 0!important;font-size:12px}
+.application-success{max-width:760px;background:#faf9f5;border:1px solid #c7d8cd;border-radius:18px;padding:28px;display:grid;grid-template-columns:42px 1fr;gap:18px;margin-top:28px}
+.success-check{width:38px;height:38px;border-radius:999px;background:#e8f4ec;color:#245e3f;display:grid;place-items:center;font-weight:900}
+.application-success h3{font-family:Georgia,"Times New Roman",serif;font-size:30px;font-weight:400;margin:4px 0 8px}
+.application-success p{margin:0;color:#5e6c65;line-height:1.55}
+.application-success .candidate-next-step{margin-top:10px;font-size:13px;color:#718079}
+
+@media(max-width:900px){
+  .candidate-hero,.job-hero-grid,.job-content-grid{grid-template-columns:1fr}
+  .candidate-promise{max-width:560px}
+  .candidate-role-list{grid-template-columns:1fr}
+  .job-hero-grid{gap:28px}
+  .job-process-card{position:static;margin-top:0;margin-bottom:20px}
+  .public-section-heading,.apply-heading{align-items:flex-start;flex-direction:column}
+}
+@media(max-width:650px){
+  .public-shell{padding:0 20px}
+  .public-nav{height:68px}
+  .public-nav nav{gap:14px}
+  .hero{padding:66px 0 58px}
+  .hero h1{font-size:50px}
+  .candidate-hero{gap:38px}
+  .candidate-process-grid{grid-template-columns:1fr;gap:22px}
+  .candidate-role-card{min-height:0}
+  .job-detail{padding-top:38px}
+  .job-detail h1{font-size:47px}
+  .candidate-form{padding:18px}
+  .candidate-form-intro,.candidate-submit-row{flex-direction:column;align-items:stretch}
+  .candidate-submit-row button{width:100%}
+  .application-success{grid-template-columns:1fr}
+}

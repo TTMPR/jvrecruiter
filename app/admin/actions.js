@@ -572,7 +572,9 @@ export async function updateInterview(formData) {
       interview_id: interviewId,
       stage_name: stageName,
       status,
-      scheduled_at: scheduledAt || null
+      scheduled_at: scheduledAt || null,
+      duration_minutes: durationMinutes,
+      meeting_url: meetingUrl
     }
   });
 

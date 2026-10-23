@@ -256,3 +256,22 @@ export async function addCandidateNote(formData) {
 
   revalidatePath(`/admin/candidates/${candidateId}`);
 }
+
+
+export async function attachCandidateToJob(formData) {
+  const { supabase } = await requireRecruiter();
+  const candidateId = clean(formData.get("candidate_id"));
+  const jobId = clean(formData.get("job_id"));
+  if (!candidateId || !jobId) return;
+
+  await supabase.from("applications").upsert({
+    candidate_id: candidateId,
+    job_id: jobId,
+    stage: "Applied",
+    source: "recruiter",
+    updated_at: new Date().toISOString()
+  }, { onConflict: "candidate_id,job_id" });
+
+  revalidatePath(`/admin/candidates/${candidateId}`);
+  revalidatePath(`/admin/jobs/${jobId}`);
+}

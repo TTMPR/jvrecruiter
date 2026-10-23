@@ -15,6 +15,9 @@ import {
   saveCandidateSubmission,
   saveOffer,
   savePlacement,
+  setPrimaryCandidateResume,
+  assignApplicationResume,
+  uploadCandidateDocument,
   sendCandidateEmail,
   updateApplicationStage,
   updateCandidate,
@@ -80,9 +83,9 @@ export default async function CandidateDetailPage({ params }) {
   const { data: candidate } = await supabase.from("candidates").select("*").eq("id", id).maybeSingle();
   if (!candidate) notFound();
 
-  const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }, { data: communications }] = await Promise.all([
+  const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }, { data: communications }, { data: documents }] = await Promise.all([
     supabase.from("applications")
-      .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at), submission:candidate_submissions(id,status,recruiter_summary,key_strengths,compensation,availability,work_authorization,visa_sponsorship,relocation,location_preference,notice_period,client_notes,submitted_at,updated_at), client_feedback(id,feedback_type,feedback,reason,next_step,received_at), offers(id,status,base_salary,bonus,total_comp,currency,equity,sign_on_bonus,start_date,expiration_date,notes,extended_at,responded_at,created_at,updated_at), placement:placements(id,offer_id,start_date,placed_compensation,currency,fee_type,fee_percentage,estimated_fee,final_fee,invoice_status,invoice_date,payment_date,guarantee_end_date,notes,updated_at)")
+      .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, resume_document_id, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at), submission:candidate_submissions(id,status,recruiter_summary,key_strengths,compensation,availability,work_authorization,visa_sponsorship,relocation,location_preference,notice_period,client_notes,submitted_at,updated_at), client_feedback(id,feedback_type,feedback,reason,next_step,received_at), offers(id,status,base_salary,bonus,total_comp,currency,equity,sign_on_bonus,start_date,expiration_date,notes,extended_at,responded_at,created_at,updated_at), placement:placements(id,offer_id,start_date,placed_compensation,currency,fee_type,fee_percentage,estimated_fee,final_fee,invoice_status,invoice_date,payment_date,guarantee_end_date,notes,updated_at)")
       .eq("candidate_id", id)
       .order("updated_at", { ascending:false }),
     supabase.from("candidate_notes")
@@ -107,20 +110,26 @@ export default async function CandidateDetailPage({ params }) {
       .select("id,channel,direction,subject,recipient,status,occurred_at,provider_message_id,provider_event_id,metadata")
       .eq("candidate_id", id)
       .order("occurred_at", { ascending:false })
-      .limit(30)
+      .limit(30),
+    supabase.from("candidate_documents")
+      .select("id,document_type,file_name,storage_path,mime_type,file_size,label,notes,is_primary,created_at")
+      .eq("candidate_id", id)
+      .order("created_at", { ascending:false })
   ]);
 
   const googleConnection = await getGoogleConnection(supabase, recruiter.id);
   const existingJobIds = new Set((applications || []).map((a) => a.job?.id));
   const availableJobs = (jobs || []).filter((job) => !existingJobIds.has(job.id));
 
-  let resumeUrl = null;
-  if (candidate.latest_resume_path) {
+  const documentRows = await Promise.all((documents || []).map(async (document) => {
     const { data } = await supabase.storage
       .from("resumes")
-      .createSignedUrl(candidate.latest_resume_path, 300, { download: candidate.latest_resume_name || true });
-    resumeUrl = data?.signedUrl || null;
-  }
+      .createSignedUrl(document.storage_path, 300);
+    return { ...document, signedUrl: data?.signedUrl || null };
+  }));
+
+  const primaryResume = documentRows.find((document) => document.document_type === "resume" && document.is_primary);
+  const resumeUrl = primaryResume?.signedUrl || null;
 
   return (
     <AdminShell recruiter={recruiter}>
@@ -184,6 +193,67 @@ export default async function CandidateDetailPage({ params }) {
           </div>
         </section>
       </div>
+
+      <section className="panel top-gap">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Documents</p>
+            <h2>Résumé & files</h2>
+            <p className="muted">Keep versions, mark a primary résumé and choose a role-specific version.</p>
+          </div>
+        </div>
+
+        <form action={uploadCandidateDocument} className="document-upload-form">
+          <input type="hidden" name="candidate_id" value={candidate.id} />
+          <label>Type
+            <select name="document_type" defaultValue="resume">
+              <option value="resume">Résumé</option>
+              <option value="cover_letter">Cover letter</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>Label
+            <input name="label" placeholder="2026 resume / AI TPM version" />
+          </label>
+          <label>File
+            <input name="file" type="file" accept=".pdf,.doc,.docx" required />
+          </label>
+          <label className="document-primary-check">
+            <input name="make_primary" type="checkbox" /> Make primary résumé
+          </label>
+          <label className="full-span">Notes
+            <input name="notes" placeholder="Optional note about this version" />
+          </label>
+          <button type="submit">Upload document</button>
+        </form>
+
+        <div className="document-list">
+          {documentRows.map((document) => (
+            <article className="document-row" key={document.id}>
+              <div>
+                <div className="document-title-line">
+                  <strong>{document.label || document.file_name}</strong>
+                  <span className="document-type">{document.document_type.replaceAll("_"," ")}</span>
+                  {document.is_primary ? <span className="primary-doc-pill">Primary</span> : null}
+                </div>
+                <span>{document.file_name} · {new Date(document.created_at).toLocaleDateString()}</span>
+                {document.notes ? <p>{document.notes}</p> : null}
+              </div>
+              <div className="document-actions">
+                {document.signedUrl ? <a href={document.signedUrl} target="_blank" rel="noreferrer">Open</a> : null}
+                {document.document_type === "resume" && !document.is_primary ? (
+                  <form action={setPrimaryCandidateResume}>
+                    <input type="hidden" name="candidate_id" value={candidate.id} />
+                    <input type="hidden" name="document_id" value={document.id} />
+                    <button type="submit">Make primary</button>
+                  </form>
+                ) : null}
+              </div>
+            </article>
+          ))}
+          {!documentRows.length ? <p className="muted">No documents uploaded yet.</p> : null}
+        </div>
+      </section>
 
       <section className="panel top-gap">
         <div className="section-heading">
@@ -301,6 +371,27 @@ export default async function CandidateDetailPage({ params }) {
                   <input type="hidden" name="application_id" value={app.id} />
                   <select name="stage" defaultValue={app.stage}>{STAGES.map((s) => <option key={s}>{s}</option>)}</select>
                   <button type="submit">Update</button>
+                </form>
+              </div>
+
+              <div className="role-resume-section">
+                <div>
+                  <strong>Résumé for this role</strong>
+                  <p className="muted">Choose which résumé version should be used for {app.job.title}.</p>
+                </div>
+                <form action={assignApplicationResume} className="inline-form role-resume-form">
+                  <input type="hidden" name="application_id" value={app.id} />
+                  <select name="document_id" defaultValue={app.resume_document_id || ""}>
+                    <option value="">Use primary résumé</option>
+                    {documentRows
+                      .filter((document) => document.document_type === "resume")
+                      .map((document) => (
+                        <option value={document.id} key={document.id}>
+                          {document.label || document.file_name}{document.is_primary ? " · Primary" : ""}
+                        </option>
+                      ))}
+                  </select>
+                  <button type="submit">Save résumé</button>
                 </form>
               </div>
 

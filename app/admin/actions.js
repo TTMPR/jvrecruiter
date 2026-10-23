@@ -872,3 +872,73 @@ export async function saveCandidateSubmission(formData) {
   revalidatePath(`/admin/jobs/${application.job_id}`);
   revalidatePath("/admin/dashboard");
 }
+
+
+export async function addClientFeedback(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const applicationId = clean(formData.get("application_id"));
+  const feedbackType = clean(formData.get("feedback_type")) || "general";
+  const feedback = clean(formData.get("feedback"));
+  const reason = clean(formData.get("reason"));
+  const nextStep = clean(formData.get("next_step"));
+  if (!applicationId || !["general","advance","hold","reject"].includes(feedbackType)) return;
+
+  const { data: application, error: appError } = await supabase
+    .from("applications")
+    .select("candidate_id,job_id")
+    .eq("id", applicationId)
+    .single();
+  if (appError) throw appError;
+
+  const { data: row, error } = await supabase.from("client_feedback").insert({
+    application_id: applicationId,
+    recruiter_id: recruiter.id,
+    feedback_type: feedbackType,
+    feedback,
+    reason,
+    next_step: nextStep
+  }).select("id").single();
+  if (error) throw error;
+
+  const now = new Date().toISOString();
+
+  if (feedbackType === "reject") {
+    const { error: updateError } = await supabase.from("applications").update({
+      stage: "Rejected",
+      interview_stage: null,
+      disposition: "rejected",
+      disposition_reason: reason || feedback,
+      disposition_at: now,
+      updated_at: now
+    }).eq("id", applicationId);
+    if (updateError) throw updateError;
+  } else if (feedbackType === "advance") {
+    const { error: updateError } = await supabase.from("applications").update({
+      disposition: "advanced",
+      disposition_reason: reason || nextStep,
+      disposition_at: now,
+      updated_at: now
+    }).eq("id", applicationId);
+    if (updateError) throw updateError;
+  } else if (feedbackType === "hold") {
+    const { error: updateError } = await supabase.from("applications").update({
+      disposition: "hold",
+      disposition_reason: reason || feedback,
+      disposition_at: now,
+      updated_at: now
+    }).eq("id", applicationId);
+    if (updateError) throw updateError;
+  }
+
+  await supabase.from("activities").insert({
+    candidate_id: application.candidate_id,
+    application_id: applicationId,
+    actor_id: recruiter.id,
+    activity_type: "client_feedback_added",
+    details: { feedback_id: row.id, feedback_type: feedbackType, reason, next_step: nextStep }
+  });
+
+  revalidatePath(`/admin/candidates/${application.candidate_id}`);
+  revalidatePath(`/admin/jobs/${application.job_id}`);
+  revalidatePath("/admin/dashboard");
+}

@@ -2,12 +2,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRecruiter } from "../../../../lib/auth";
 import AdminShell from "../../admin-shell";
-import { updateApplicationStage, updateJob, updateJobStatus } from "../../actions";
+import {
+  setPublicPostingState,
+  updateApplicationStage,
+  updateJob,
+  updatePublicPosting
+} from "../../actions";
 
 const MAIN_STAGES = ["Applied","Prescreen","Submitted","Client Sub","Interviewing","Offer","Placed"];
 
-export default async function JobDetailPage({ params }) {
+export default async function JobDetailPage({ params, searchParams }) {
   const { id } = await params;
+  const query = await searchParams;
   const { recruiter, supabase } = await requireRecruiter();
 
   const [{ data: job }, { data: applications }] = await Promise.all([
@@ -22,6 +28,7 @@ export default async function JobDetailPage({ params }) {
 
   const post = job.job_posts?.[0] || {};
   const interviewStages = Array.isArray(job.interview_stages) ? job.interview_stages : [];
+  const publishError = query?.publish_error;
 
   return (
     <AdminShell recruiter={recruiter}>
@@ -31,42 +38,111 @@ export default async function JobDetailPage({ params }) {
           <h1>{job.title}</h1>
           <p className="muted">{job.client_name || "Confidential client"} · {job.status}</p>
         </div>
-        <form action={updateJobStatus} className="inline-form">
-          <input type="hidden" name="job_id" value={job.id} />
-          <select name="status" defaultValue={job.status}>
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-            <option value="paused">Paused</option>
-            <option value="closed">Closed</option>
-          </select>
-          <button type="submit">Update status</button>
-        </form>
+        <div className="publish-state">
+          <span className={post.published ? "status-pill published" : "status-pill"}>
+            {post.published ? "Live" : "Not public"}
+          </span>
+          {post.published && post.slug ? (
+            <Link className="secondary-button" href={`/jobs/${post.slug}`} target="_blank">
+              View live posting
+            </Link>
+          ) : null}
+        </div>
       </header>
 
-      <section className="panel">
-        <h2>Edit role</h2>
-        <form action={updateJob} className="stack-form">
-          <input type="hidden" name="job_id" value={job.id} />
-          <div className="form-grid">
-            <label>Title<input name="title" defaultValue={job.title || ""} required /></label>
+      <div className="two-column job-settings-grid">
+        <section className="panel">
+          <p className="eyebrow">Internal only</p>
+          <h2>Search setup</h2>
+          <p className="muted">These details stay inside JVRecruit and are never shown on the public posting.</p>
+
+          <form action={updateJob} className="stack-form">
+            <input type="hidden" name="job_id" value={job.id} />
+            <label>Internal role title<input name="title" defaultValue={job.title || ""} required /></label>
             <label>Department<input name="department" defaultValue={job.department || ""} /></label>
             <label>Client name<input name="client_name" defaultValue={job.client_name || ""} /></label>
             <label>Hiring manager<input name="hiring_manager" defaultValue={job.hiring_manager || ""} /></label>
             <label>Client contact<input name="client_contact" defaultValue={job.client_contact || ""} /></label>
-            <label>Location<input name="location" defaultValue={post.location || ""} /></label>
-            <label>Workplace<input name="workplace" defaultValue={post.workplace || ""} /></label>
-            <label>Employment type<input name="employment_type" defaultValue={post.employment_type || ""} /></label>
-            <label>Compensation<input name="compensation" defaultValue={post.compensation || ""} /></label>
+            <label>Interview stages<textarea name="interview_stages" rows="4" defaultValue={interviewStages.join("\n")} placeholder={"Recruiter Screen\nHiring Manager\nPanel\nFinal"} /></label>
+            <label>Internal notes<textarea name="internal_notes" rows="4" defaultValue={job.internal_notes || ""} /></label>
+            <button type="submit">Save internal details</button>
+          </form>
+        </section>
+
+        <section className="panel public-post-panel">
+          <p className="eyebrow">Candidate-facing</p>
+          <h2>Public posting</h2>
+          <p className="muted">Only the fields in this section can appear on jvrecruiter.xyz.</p>
+
+          <form action={updatePublicPosting} className="stack-form">
+            <input type="hidden" name="job_id" value={job.id} />
+            <label>Public title<input name="public_title" defaultValue={post.title || job.title || ""} required /></label>
+            <div className="form-grid">
+              <label>Department<input name="department" defaultValue={post.department || job.department || ""} /></label>
+              <label>Location<input name="location" defaultValue={post.location || ""} placeholder="Austin, TX / Remote" /></label>
+              <label>Workplace
+                <select name="workplace" defaultValue={post.workplace || ""}>
+                  <option value="">Select</option>
+                  <option value="Remote">Remote</option>
+                  <option value="Hybrid">Hybrid</option>
+                  <option value="On-site">On-site</option>
+                </select>
+              </label>
+              <label>Employment type
+                <select name="employment_type" defaultValue={post.employment_type || ""}>
+                  <option value="">Select</option>
+                  <option value="Full-time">Full-time</option>
+                  <option value="Contract">Contract</option>
+                  <option value="Part-time">Part-time</option>
+                </select>
+              </label>
+              <label>Compensation<input name="compensation" defaultValue={post.compensation || ""} placeholder="$180k–$220k base" /></label>
+            </div>
+
+            <label>Short summary<textarea name="short_summary" rows="3" defaultValue={post.short_summary || ""} placeholder="A concise overview shown on the Open Roles page." /></label>
+            <label>About the role<textarea name="description" rows="6" defaultValue={post.description || ""} /></label>
+            <label>What you'll do<textarea name="responsibilities" rows="6" defaultValue={post.responsibilities || ""} /></label>
+            <label>What we're looking for<textarea name="requirements" rows="6" defaultValue={post.requirements || ""} /></label>
+            <button type="submit">Save public posting</button>
+          </form>
+
+          <div className="publish-box">
+            <div>
+              <strong>{post.published ? "This role is live." : "This role is not public."}</strong>
+              <p>
+                {post.published
+                  ? "Candidates can see it under Open Roles and submit an application."
+                  : "Save the posting first, then publish when it is ready."}
+              </p>
+            </div>
+
+            {publishError ? <div className="error-box">{publishError}</div> : null}
+
+            <div className="publish-actions">
+              {post.published ? (
+                <>
+                  <form action={setPublicPostingState}>
+                    <input type="hidden" name="job_id" value={job.id} />
+                    <input type="hidden" name="intent" value="unpublish" />
+                    <button className="secondary-button" type="submit">Unpublish</button>
+                  </form>
+                  <form action={setPublicPostingState}>
+                    <input type="hidden" name="job_id" value={job.id} />
+                    <input type="hidden" name="intent" value="close" />
+                    <button className="danger-button" type="submit">Close role</button>
+                  </form>
+                </>
+              ) : (
+                <form action={setPublicPostingState}>
+                  <input type="hidden" name="job_id" value={job.id} />
+                  <input type="hidden" name="intent" value="publish" />
+                  <button type="submit">Publish role</button>
+                </form>
+              )}
+            </div>
           </div>
-          <label>Public summary<textarea name="short_summary" rows="2" defaultValue={post.short_summary || ""} /></label>
-          <label>Description<textarea name="description" rows="4" defaultValue={post.description || ""} /></label>
-          <label>Responsibilities<textarea name="responsibilities" rows="4" defaultValue={post.responsibilities || ""} /></label>
-          <label>Requirements<textarea name="requirements" rows="4" defaultValue={post.requirements || ""} /></label>
-          <label>Interview stages<textarea name="interview_stages" rows="4" defaultValue={interviewStages.join("\n")} /></label>
-          <label>Internal notes<textarea name="internal_notes" rows="3" defaultValue={job.internal_notes || ""} /></label>
-          <button type="submit">Save changes</button>
-        </form>
-      </section>
+        </section>
+      </div>
 
       <section className="panel top-gap">
         <h2>Pipeline</h2>
@@ -104,16 +180,6 @@ export default async function JobDetailPage({ params }) {
             );
           })}
         </div>
-      </section>
-
-      <section className="panel top-gap">
-        <h2>Public posting</h2>
-        {post.slug ? (
-          <p>
-            {post.published ? "Published" : "Not published"} ·
-            {" "}<Link href={`/jobs/${post.slug}`}>View public page</Link>
-          </p>
-        ) : <p>No public post.</p>}
       </section>
     </AdminShell>
   );

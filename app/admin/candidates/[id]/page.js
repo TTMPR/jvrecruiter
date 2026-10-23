@@ -390,10 +390,7 @@ export default async function CandidateDetailPage({ params }) {
                               interview.google_event_id ? (
                                 interview.google_calendar_link ? <a href={interview.google_calendar_link} target="_blank" rel="noreferrer">Open Calendar event</a> : null
                               ) : (
-                                <form action={createInterviewCalendarEvent}>
-                                  <input type="hidden" name="interview_id" value={interview.id} />
-                                  <button type="submit">Create Google Calendar event</button>
-                                </form>
+                                <button type="submit" formAction={createInterviewCalendarEvent}>Create Google Calendar event</button>
                               )
                             ) : calendarUrl ? <a href={calendarUrl} target="_blank" rel="noreferrer">Add to Google Calendar</a> : null}
                             {googleConnection ? null : emailUrl ? <a href={emailUrl} target="_blank" rel="noreferrer">Draft in Gmail</a> : null}

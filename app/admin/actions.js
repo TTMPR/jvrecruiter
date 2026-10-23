@@ -25,13 +25,6 @@ export async function createJob(formData) {
   const title = clean(formData.get("title"));
   if (!title) return;
 
-  const status = clean(formData.get("status")) || "draft";
-  const published = status === "published";
-  const interviewStages = String(formData.get("interview_stages") || "")
-    .split("\n")
-    .map((x) => x.trim())
-    .filter(Boolean);
-
   const { data: job, error } = await supabase
     .from("jobs")
     .insert({
@@ -42,37 +35,27 @@ export async function createJob(formData) {
       hiring_manager: clean(formData.get("hiring_manager")),
       client_contact: clean(formData.get("client_contact")),
       internal_notes: clean(formData.get("internal_notes")),
-      interview_stages: interviewStages,
-      status
+      interview_stages: [],
+      status: "draft"
     })
     .select("id")
     .single();
 
   if (error) throw error;
 
-  const baseSlug = slugify(title) || "role";
-  const slug = `${baseSlug}-${job.id.slice(0, 8)}`;
+  const slug = `${slugify(title) || "role"}-${job.id.slice(0, 8)}`;
 
   const { error: postError } = await supabase.from("job_posts").insert({
     job_id: job.id,
     slug,
     title,
     department: clean(formData.get("department")),
-    location: clean(formData.get("location")),
-    workplace: clean(formData.get("workplace")),
-    employment_type: clean(formData.get("employment_type")),
-    compensation: clean(formData.get("compensation")),
-    short_summary: clean(formData.get("short_summary")),
-    description: clean(formData.get("description")),
-    responsibilities: clean(formData.get("responsibilities")),
-    requirements: clean(formData.get("requirements")),
-    published,
-    published_at: published ? new Date().toISOString() : null
+    published: false,
+    published_at: null
   });
 
   if (postError) throw postError;
 
-  revalidatePath("/");
   revalidatePath("/admin/jobs");
   redirect(`/admin/jobs/${job.id}`);
 }

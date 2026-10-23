@@ -1,7 +1,8 @@
 import { requireRecruiter } from "../../../lib/auth";
+import AdminShell from "../admin-shell";
 
 export default async function CandidatesPage() {
-  const { supabase } = await requireRecruiter();
+  const { recruiter, supabase } = await requireRecruiter();
 
   const { data: candidates } = await supabase
     .from("candidates")
@@ -10,7 +11,7 @@ export default async function CandidatesPage() {
     .limit(100);
 
   return (
-    <>
+    <AdminShell recruiter={recruiter}>
       <header className="admin-header">
         <div>
           <p className="eyebrow">Candidates</p>
@@ -43,6 +44,6 @@ export default async function CandidatesPage() {
           </div>
         )}
       </section>
-    </>
+    </AdminShell>
   );
 }

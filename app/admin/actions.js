@@ -11,6 +11,15 @@ function clean(value) {
   return v || null;
 }
 
+function localDateTimeToIso(value) {
+  const v = clean(value);
+  if (!v) return null;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) {
+    return new Date(`${v}:00-04:00`).toISOString();
+  }
+  return new Date(v).toISOString();
+}
+
 function slugify(value) {
   return String(value || "")
     .toLowerCase()
@@ -470,7 +479,7 @@ export async function createInterview(formData) {
     .insert({
       application_id: applicationId,
       stage_name: stageName,
-      scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+      scheduled_at: localDateTimeToIso(scheduledAt),
       status: "scheduled",
       notes: clean(formData.get("notes")),
       created_by: recruiter.id
@@ -528,7 +537,7 @@ export async function updateInterview(formData) {
 
   const { error } = await supabase.from("interviews").update({
     stage_name: stageName,
-    scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+    scheduled_at: localDateTimeToIso(scheduledAt),
     status,
     notes: clean(formData.get("notes")),
     updated_at: new Date().toISOString()
@@ -587,7 +596,7 @@ export async function createTask(formData) {
       notes: clean(formData.get("notes")),
       priority,
       status: "open",
-      due_at: dueAt ? new Date(dueAt).toISOString() : null
+      due_at: localDateTimeToIso(dueAt)
     })
     .select("id")
     .single();

@@ -22,7 +22,7 @@ export default async function JobDetailPage({ params, searchParams }) {
   const [{ data: job }, { data: applications }, { data: tasks }] = await Promise.all([
     supabase.from("jobs").select("*, job_posts(*)").eq("id", id).maybeSingle(),
     supabase.from("applications")
-      .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, applied_at, candidate:candidates(id, full_name, current_title, current_company, location), submission:candidate_submissions(id,status,compensation,availability,work_authorization,visa_sponsorship,relocation,submitted_at,updated_at), client_feedback(id,feedback_type,reason,received_at)")
+      .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, applied_at, candidate:candidates(id, full_name, current_title, current_company, location), submission:candidate_submissions(id,status,compensation,availability,work_authorization,visa_sponsorship,relocation,submitted_at,updated_at), client_feedback(id,feedback_type,reason,received_at), offers(id,status,base_salary,total_comp,currency,start_date,created_at), placement:placements(id,start_date,placed_compensation,currency,estimated_fee,final_fee,invoice_status,payment_date,guarantee_end_date)")
       .eq("job_id", id)
       .order("updated_at", { ascending: false }),
     supabase.from("tasks")
@@ -42,6 +42,11 @@ export default async function JobDetailPage({ params, searchParams }) {
   const advancedCount = (applications || []).filter((app) => app.disposition === "advanced").length;
   const holdCount = (applications || []).filter((app) => app.disposition === "hold").length;
   const rejectedCount = (applications || []).filter((app) => app.disposition === "rejected").length;
+  const offerCount = (applications || []).reduce((sum, app) => sum + (app.offers || []).filter((offer) => ["extended","accepted","declined"].includes(offer.status)).length, 0);
+  const acceptedOffers = (applications || []).reduce((sum, app) => sum + (app.offers || []).filter((offer) => offer.status === "accepted").length, 0);
+  const placements = (applications || []).filter((app) => app.placement);
+  const estimatedFees = placements.reduce((sum, app) => sum + Number(app.placement?.estimated_fee || 0), 0);
+  const finalFees = placements.reduce((sum, app) => sum + Number(app.placement?.final_fee || 0), 0);
 
   const reasonCounts = {};
   for (const app of applications || []) {
@@ -238,6 +243,42 @@ export default async function JobDetailPage({ params, searchParams }) {
             </article>
           ))}
           {!tasks?.length ? <p className="muted">No role follow-ups yet.</p> : null}
+        </div>
+      </section>
+
+      <section className="panel top-gap">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Offers & placements</p>
+            <h2>Closing metrics</h2>
+          </div>
+        </div>
+
+        <div className="feedback-metrics">
+          <article><span>Offers</span><strong>{offerCount}</strong></article>
+          <article><span>Accepted</span><strong>{acceptedOffers}</strong></article>
+          <article><span>Placements</span><strong>{placements.length}</strong></article>
+          <article><span>Est. fees</span><strong>{estimatedFees ? `${Math.round(estimatedFees).toLocaleString()}` : "$0"}</strong></article>
+          <article><span>Final fees</span><strong>{finalFees ? `${Math.round(finalFees).toLocaleString()}` : "$0"}</strong></article>
+        </div>
+
+        <div className="table-list top-gap-small">
+          {placements.map((app) => (
+            <Link className="table-row placement-row" href={`/admin/candidates/${app.candidate.id}`} key={app.id}>
+              <div>
+                <strong>{app.candidate.full_name}</strong>
+                <span>{[
+                  app.placement.placed_compensation ? `Comp: ${app.placement.currency || "USD"} ${Number(app.placement.placed_compensation).toLocaleString()}` : null,
+                  app.placement.start_date ? `Starts ${app.placement.start_date}` : null
+                ].filter(Boolean).join(" · ")}</span>
+              </div>
+              <div className="submission-row-meta">
+                <span className={`invoice-pill ${app.placement.invoice_status}`}>{app.placement.invoice_status.replaceAll("_"," ")}</span>
+                <span>{app.placement.final_fee ? `${Number(app.placement.final_fee).toLocaleString()}` : app.placement.estimated_fee ? `Est. ${Number(app.placement.estimated_fee).toLocaleString()}` : "Fee pending"}</span>
+              </div>
+            </Link>
+          ))}
+          {!placements.length ? <p className="muted">No placements recorded yet.</p> : null}
         </div>
       </section>
 

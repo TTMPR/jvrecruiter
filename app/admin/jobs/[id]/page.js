@@ -37,6 +37,13 @@ export default async function JobDetailPage({ params, searchParams }) {
   const post = job.job_posts?.[0] || {};
   const interviewStages = Array.isArray(job.interview_stages) ? job.interview_stages : [];
   const publishError = query?.publish_error;
+  const publishedSuccess = query?.published === "1";
+  const publishMissing = [
+    !post.title ? "Public title" : null,
+    !post.location ? "Location" : null,
+    !post.short_summary ? "Short summary" : null,
+    !post.description ? "About the role" : null
+  ].filter(Boolean);
 
   const submittedApps = (applications || []).filter((app) => app.submission?.status === "submitted");
   const advancedCount = (applications || []).filter((app) => app.disposition === "advanced").length;
@@ -104,7 +111,7 @@ export default async function JobDetailPage({ params, searchParams }) {
           <h2>Public posting</h2>
           <p className="muted">Only the fields in this section can appear on jvrecruiter.xyz.</p>
 
-          <form action={updatePublicPosting} className="stack-form">
+          <form id="public-posting-form" action={updatePublicPosting} className="stack-form">
             <input type="hidden" name="job_id" value={job.id} />
             <label>Public title<input name="public_title" defaultValue={post.title || job.title || ""} required /></label>
             <div className="form-grid">
@@ -154,10 +161,17 @@ export default async function JobDetailPage({ params, searchParams }) {
               rows={7}
               initialValue={post.requirements || ""}
             />
-            <button type="submit">Save public posting</button>
+            <div className="public-post-actions">
+              <button type="submit" name="intent" value="save" className="secondary-button">Save draft</button>
+              {!post.published ? (
+                <button type="submit" name="intent" value="publish">Save & Publish</button>
+              ) : (
+                <button type="submit" name="intent" value="save">Save changes</button>
+              )}
+            </div>
           </form>
 
-          <div className="publish-box">
+          <div className="publish-box" id="publish">
             <div>
               <strong>{post.published ? "This role is live." : "This role is not public."}</strong>
               <p>
@@ -167,7 +181,14 @@ export default async function JobDetailPage({ params, searchParams }) {
               </p>
             </div>
 
+            {publishedSuccess ? <div className="success-box">Role published successfully.</div> : null}
             {publishError ? <div className="error-box">{publishError}</div> : null}
+            {!post.published && publishMissing.length ? (
+              <div className="publish-readiness">
+                <strong>Before publishing:</strong>
+                <span>{publishMissing.join(" · ")}</span>
+              </div>
+            ) : null}
 
             <div className="publish-actions">
               {post.published ? (
@@ -184,11 +205,15 @@ export default async function JobDetailPage({ params, searchParams }) {
                   </form>
                 </>
               ) : (
-                <form action={setPublicPostingState}>
-                  <input type="hidden" name="job_id" value={job.id} />
-                  <input type="hidden" name="intent" value="publish" />
-                  <button type="submit">Publish role</button>
-                </form>
+                <button
+                  type="submit"
+                  form="public-posting-form"
+                  name="intent"
+                  value="publish"
+                  disabled={false}
+                >
+                  Save & Publish
+                </button>
               )}
             </div>
           </div>

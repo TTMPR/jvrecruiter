@@ -400,3 +400,35 @@ export async function setPublicPostingState(formData) {
   revalidatePath("/admin/jobs");
   revalidatePath(`/admin/jobs/${jobId}`);
 }
+
+
+export async function updateCandidate(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const candidateId = clean(formData.get("candidate_id"));
+  const fullName = clean(formData.get("full_name"));
+  if (!candidateId || !fullName) return;
+
+  const { error } = await supabase.from("candidates").update({
+    full_name: fullName,
+    email: clean(formData.get("email")),
+    phone: clean(formData.get("phone")),
+    linkedin_url: clean(formData.get("linkedin_url")),
+    location: clean(formData.get("location")),
+    current_title: clean(formData.get("current_title")),
+    current_company: clean(formData.get("current_company")),
+    source: clean(formData.get("source")) || "other",
+    updated_at: new Date().toISOString()
+  }).eq("id", candidateId);
+
+  if (error) throw error;
+
+  await supabase.from("activities").insert({
+    candidate_id: candidateId,
+    actor_id: recruiter.id,
+    activity_type: "candidate_updated",
+    details: {}
+  });
+
+  revalidatePath("/admin/candidates");
+  revalidatePath(`/admin/candidates/${candidateId}`);
+}

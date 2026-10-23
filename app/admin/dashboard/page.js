@@ -22,7 +22,8 @@ export default async function DashboardPage() {
     { data: applications },
     { data: interviews },
     { data: activities },
-    { data: intake }
+    { data: intake },
+    { data: tasks }
   ] = await Promise.all([
     supabase.from("jobs")
       .select("id,title,status,client_name,updated_at")
@@ -44,7 +45,12 @@ export default async function DashboardPage() {
       .limit(12),
     supabase.from("public_intake")
       .select("id")
-      .eq("status", "new")
+      .eq("status", "new"),
+    supabase.from("tasks")
+      .select("id,title,priority,status,due_at,candidate:candidates(id,full_name),job:jobs(id,title)")
+      .eq("status", "open")
+      .order("due_at", { ascending:true, nullsFirst:false })
+      .limit(20)
   ]);
 
   const now = Date.now();
@@ -79,13 +85,30 @@ export default async function DashboardPage() {
     };
   }).sort((a, b) => Number(b.needsAttention) - Number(a.needsAttention) || b.ageDays - a.ageDays);
 
+  const dateKey = (value) => new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Puerto_Rico",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date(value));
+
+  const todayKey = dateKey(new Date());
+  const taskRows = (tasks || []).map((task) => ({
+    ...task,
+    dueKey: task.due_at ? dateKey(task.due_at) : null
+  }));
+  const dueToday = taskRows.filter((task) => task.dueKey === todayKey);
+  const overdueTasks = taskRows.filter((task) => task.dueKey && task.dueKey < todayKey);
+  const attentionTasks = [...overdueTasks, ...dueToday].slice(0, 8);
+
   const metrics = [
     ["Active roles", (jobs || []).length],
     ["New candidates · 7d", candidatesThisWeek],
     ["Interviewing", interviewing],
     ["Offers", offers],
     ["Placements", placements],
-    ["Website intake", (intake || []).length]
+    ["Website intake", (intake || []).length],
+    ["Due today", dueToday.length]
   ];
 
   return (
@@ -160,6 +183,35 @@ export default async function DashboardPage() {
           </div>
         </section>
       </div>
+
+      <section className="panel top-gap">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Follow-ups</p>
+            <h2>Tasks needing attention</h2>
+          </div>
+          <Link className="secondary-button" href="/admin/tasks">All tasks</Link>
+        </div>
+
+        <div className="task-list dashboard-task-list">
+          {attentionTasks.map((task) => (
+            <article className="task-row" key={task.id}>
+              <div className="task-main">
+                <div className="task-title-line">
+                  <strong>{task.title}</strong>
+                  <span className={`priority-pill ${task.priority}`}>{task.priority}</span>
+                  <span className={`due-pill ${task.dueKey < todayKey ? "overdue" : "today"}`}>
+                    {task.dueKey < todayKey ? "Overdue" : "Due today"}
+                  </span>
+                </div>
+                <span>{[task.candidate?.full_name, task.job?.title, task.due_at ? new Date(task.due_at).toLocaleString("en-US", { timeZone: "America/Puerto_Rico", dateStyle: "short", timeStyle: "short" }) : null].filter(Boolean).join(" · ")}</span>
+              </div>
+              <Link className="secondary-button" href={task.candidate?.id ? `/admin/candidates/${task.candidate.id}` : task.job?.id ? `/admin/jobs/${task.job.id}` : "/admin/tasks"}>Open</Link>
+            </article>
+          ))}
+          {!attentionTasks.length ? <p className="muted">Nothing overdue or due today.</p> : null}
+        </div>
+      </section>
 
       <div className="dashboard-grid top-gap">
         <section className="panel">

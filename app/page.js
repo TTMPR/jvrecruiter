@@ -20,7 +20,6 @@ export default async function HomePage() {
         <nav>
           <a href="#roles">Open Roles</a>
           <a href="#network">Join My Network</a>
-          <Link href="/admin/login">Admin</Link>
         </nav>
       </header>
 
@@ -114,6 +113,14 @@ export default async function HomePage() {
         </p>
         <PublicIntakeForm type="network" />
       </section>
+
+      <footer className="public-footer">
+        <div>
+          <strong>JVRecruit</strong>
+          <span>Thoughtful recruiting for technical, product, data and leadership talent.</span>
+        </div>
+        <Link href="/admin/login">Recruiter access</Link>
+      </footer>
     </main>
   );
 }

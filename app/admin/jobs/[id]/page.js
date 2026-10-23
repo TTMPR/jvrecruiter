@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRecruiter } from "../../../../lib/auth";
 import AdminShell from "../../admin-shell";
+import RichTextEditor from "../../rich-text-editor";
 import {
   setPublicPostingState,
   updateApplicationStage,
@@ -99,10 +100,31 @@ export default async function JobDetailPage({ params, searchParams }) {
               <label>Compensation<input name="compensation" defaultValue={post.compensation || ""} placeholder="$180k–$220k base" /></label>
             </div>
 
-            <label>Short summary<textarea name="short_summary" rows="3" defaultValue={post.short_summary || ""} placeholder="A concise overview shown on the Open Roles page." /></label>
-            <label>About the role<textarea name="description" rows="6" defaultValue={post.description || ""} /></label>
-            <label>What you'll do<textarea name="responsibilities" rows="6" defaultValue={post.responsibilities || ""} /></label>
-            <label>What we're looking for<textarea name="requirements" rows="6" defaultValue={post.requirements || ""} /></label>
+            <RichTextEditor
+              name="short_summary"
+              label="Short summary"
+              rows={3}
+              initialValue={post.short_summary || ""}
+              placeholder="A concise overview shown on the Open Roles page."
+            />
+            <RichTextEditor
+              name="description"
+              label="About the role"
+              rows={7}
+              initialValue={post.description || ""}
+            />
+            <RichTextEditor
+              name="responsibilities"
+              label="What you'll do"
+              rows={7}
+              initialValue={post.responsibilities || ""}
+            />
+            <RichTextEditor
+              name="requirements"
+              label="What we're looking for"
+              rows={7}
+              initialValue={post.requirements || ""}
+            />
             <button type="submit">Save public posting</button>
           </form>
 

@@ -21,33 +21,20 @@ export default async function JobsPage() {
       </header>
 
       <section className="panel">
+        <p className="eyebrow">Private role setup</p>
         <h2>Create a role</h2>
+        <p className="muted">This creates the internal search only. You can prepare and publish the public posting from the role page.</p>
+
         <form action={createJob} className="stack-form">
           <div className="form-grid">
-            <label>Title<input name="title" required /></label>
+            <label>Internal role title<input name="title" required /></label>
             <label>Department<input name="department" /></label>
             <label>Client name<input name="client_name" /></label>
             <label>Hiring manager<input name="hiring_manager" /></label>
             <label>Client contact<input name="client_contact" /></label>
-            <label>Status
-              <select name="status" defaultValue="draft">
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-                <option value="paused">Paused</option>
-              </select>
-            </label>
-            <label>Location<input name="location" /></label>
-            <label>Workplace<input name="workplace" placeholder="Remote, Hybrid, On-site" /></label>
-            <label>Employment type<input name="employment_type" /></label>
-            <label>Compensation<input name="compensation" /></label>
           </div>
-          <label>Public summary<textarea name="short_summary" rows="2" /></label>
-          <label>Description<textarea name="description" rows="4" /></label>
-          <label>Responsibilities<textarea name="responsibilities" rows="4" /></label>
-          <label>Requirements<textarea name="requirements" rows="4" /></label>
-          <label>Interview stages<textarea name="interview_stages" rows="4" placeholder={"Recruiter Screen\nHiring Manager\nPanel\nFinal"} /></label>
           <label>Internal notes<textarea name="internal_notes" rows="3" /></label>
-          <button type="submit">Create role</button>
+          <button type="submit">Create draft role</button>
         </form>
       </section>
 

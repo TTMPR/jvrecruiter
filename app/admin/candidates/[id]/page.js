@@ -4,12 +4,14 @@ import { requireRecruiter } from "../../../../lib/auth";
 import AdminShell from "../../admin-shell";
 import { gmailComposeUrl, googleCalendarUrl, mailtoUrl } from "../../communication-links";
 import { getGoogleConnection } from "../../../../lib/google";
+import CopySubmissionButton from "../../copy-submission-button";
 import {
   addCandidateNote,
   attachCandidateToJob,
   createInterview,
   createInterviewCalendarEvent,
   createTask,
+  saveCandidateSubmission,
   sendCandidateEmail,
   updateApplicationStage,
   updateCandidate,
@@ -35,6 +37,30 @@ function toPuertoRicoInput(value) {
   return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}`;
 }
 
+
+function buildSubmissionText(candidate, job, submission) {
+  const lines = [
+    candidate.full_name,
+    [candidate.current_title, candidate.current_company].filter(Boolean).join(" · "),
+    candidate.location ? `Location: ${candidate.location}` : null,
+    "",
+    submission?.recruiter_summary || null,
+    submission?.key_strengths ? `Key strengths: ${submission.key_strengths}` : null,
+    submission?.compensation ? `Compensation: ${submission.compensation}` : null,
+    submission?.availability ? `Availability: ${submission.availability}` : null,
+    submission?.notice_period ? `Notice period: ${submission.notice_period}` : null,
+    submission?.work_authorization ? `Work authorization: ${submission.work_authorization}` : null,
+    submission?.visa_sponsorship ? `Visa sponsorship: ${submission.visa_sponsorship}` : null,
+    submission?.relocation ? `Relocation: ${submission.relocation}` : null,
+    submission?.location_preference ? `Location preference: ${submission.location_preference}` : null,
+    submission?.client_notes ? `Notes: ${submission.client_notes}` : null,
+    "",
+    `Role: ${job.title}`
+  ].filter((line) => line !== null);
+
+  return lines.join("\n");
+}
+
 function displayPuertoRicoDate(value) {
   if (!value) return "Not scheduled";
   return new Intl.DateTimeFormat("en-US", {
@@ -53,7 +79,7 @@ export default async function CandidateDetailPage({ params }) {
 
   const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }, { data: communications }] = await Promise.all([
     supabase.from("applications")
-      .select("id, stage, interview_stage, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at)")
+      .select("id, stage, interview_stage, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at), submission:candidate_submissions(id,status,recruiter_summary,key_strengths,compensation,availability,work_authorization,visa_sponsorship,relocation,location_preference,notice_period,client_notes,submitted_at,updated_at)")
       .eq("candidate_id", id)
       .order("updated_at", { ascending:false }),
     supabase.from("candidate_notes")
@@ -272,6 +298,82 @@ export default async function CandidateDetailPage({ params }) {
                   <input type="hidden" name="application_id" value={app.id} />
                   <select name="stage" defaultValue={app.stage}>{STAGES.map((s) => <option key={s}>{s}</option>)}</select>
                   <button type="submit">Update</button>
+                </form>
+              </div>
+
+              <div className="submission-section">
+                <div className="section-heading compact-heading">
+                  <div>
+                    <strong>Client submission</strong>
+                    <p className="muted">Prepare the candidate snapshot for this specific role.</p>
+                  </div>
+                  {app.submission ? (
+                    <span className={`submission-status ${app.submission.status}`}>{app.submission.status}</span>
+                  ) : null}
+                </div>
+
+                <form action={saveCandidateSubmission} className="submission-form">
+                  <input type="hidden" name="application_id" value={app.id} />
+
+                  <label className="full-span">Recruiter summary
+                    <textarea
+                      name="recruiter_summary"
+                      rows="4"
+                      defaultValue={app.submission?.recruiter_summary || ""}
+                      placeholder="Why this candidate is a strong fit for this role..."
+                    />
+                  </label>
+
+                  <label className="full-span">Key strengths
+                    <textarea
+                      name="key_strengths"
+                      rows="3"
+                      defaultValue={app.submission?.key_strengths || ""}
+                      placeholder="Technical depth, domain fit, leadership, 0→1, scale..."
+                    />
+                  </label>
+
+                  <label>Compensation
+                    <input name="compensation" defaultValue={app.submission?.compensation || ""} placeholder="$180k base / $230k TC" />
+                  </label>
+                  <label>Availability
+                    <input name="availability" defaultValue={app.submission?.availability || ""} placeholder="Available next week / specific windows" />
+                  </label>
+                  <label>Notice period
+                    <input name="notice_period" defaultValue={app.submission?.notice_period || ""} placeholder="2 weeks" />
+                  </label>
+                  <label>Work authorization
+                    <input name="work_authorization" defaultValue={app.submission?.work_authorization || ""} placeholder="US Citizen / GC / H-1B" />
+                  </label>
+                  <label>Visa sponsorship
+                    <input name="visa_sponsorship" defaultValue={app.submission?.visa_sponsorship || ""} placeholder="Not needed / Needs transfer" />
+                  </label>
+                  <label>Relocation
+                    <input name="relocation" defaultValue={app.submission?.relocation || ""} placeholder="Open / Not open / Austin only" />
+                  </label>
+                  <label>Location preference
+                    <input name="location_preference" defaultValue={app.submission?.location_preference || ""} placeholder="Remote / Austin / Bay Area" />
+                  </label>
+                  <label className="full-span">Client notes
+                    <textarea
+                      name="client_notes"
+                      rows="3"
+                      defaultValue={app.submission?.client_notes || ""}
+                      placeholder="Anything the client should know before the first conversation..."
+                    />
+                  </label>
+
+                  <div className="submission-actions full-span">
+                    <button type="submit" name="intent" value="draft" className="secondary-button">Save draft</button>
+                    <button type="submit" name="intent" value="ready">Mark ready</button>
+                    <button type="submit" name="intent" value="submitted">Mark submitted</button>
+                    <CopySubmissionButton text={buildSubmissionText(candidate, app.job, app.submission || {})} />
+                    {app.submission?.submitted_at ? (
+                      <span className="muted">
+                        Submitted {new Date(app.submission.submitted_at).toLocaleString("en-US", { timeZone: "America/Puerto_Rico", dateStyle: "short", timeStyle: "short" })}
+                      </span>
+                    ) : null}
+                  </div>
                 </form>
               </div>
 

@@ -95,3 +95,32 @@ button,select,textarea{font:inherit}
 @media(max-width:1100px){.dashboard-metrics{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){.dashboard-grid{grid-template-columns:1fr}}
 @media(max-width:560px){.dashboard-metrics{grid-template-columns:1fr 1fr}.dashboard-item{flex-direction:column}}
+
+.task-create-form{display:grid;grid-template-columns:1.1fr 2fr .8fr 1.2fr 1.2fr 1.2fr;gap:10px;align-items:end}
+.task-create-form label{display:grid;gap:5px;font-size:12px;font-weight:700}
+.task-create-form input,.task-create-form select,.task-create-form textarea{width:100%;border:1px solid #cfd6d1;border-radius:9px;background:white;padding:9px 10px}
+.task-create-form button{border:0;border-radius:9px;background:#102d35;color:white;padding:10px 13px;font-weight:800;cursor:pointer}
+.task-notes-field{grid-column:1/-2}
+.compact-task-form{grid-template-columns:1.2fr 2fr .8fr 1.2fr auto}
+.task-list{display:grid}
+.task-row{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:14px 0;border-bottom:1px solid #e4e8e4}
+.task-row:last-child{border-bottom:0}
+.task-main{display:grid;gap:4px;min-width:0}
+.task-main>span,.task-main p{font-size:12px;color:#718079;margin:0}
+.task-title-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.task-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.task-actions a,.task-actions button{border:1px solid #d5dcd7;background:white;color:#102d35;border-radius:9px;padding:8px 10px;font-size:12px;font-weight:800;cursor:pointer}
+.task-filters{display:flex;gap:8px;flex-wrap:wrap}
+.task-filters a{padding:7px 10px;border:1px solid #d9dfda;border-radius:999px;font-size:12px}
+.task-filters a.active{background:#102d35;color:white;border-color:#102d35}
+.priority-pill,.due-pill{display:inline-flex;align-items:center;border-radius:999px;padding:3px 7px;font-size:10px!important;font-weight:800;text-transform:capitalize}
+.priority-pill.low{background:#f2f4f1;color:#617168}
+.priority-pill.medium{background:#eef2f7;color:#476078}
+.priority-pill.high{background:#fff1ee;color:#8a3028}
+.due-pill.today{background:#fff4e8;color:#87510f}
+.due-pill.overdue{background:#fdebea;color:#8a3028}
+.compact-task-list{margin-top:14px}
+.dashboard-task-list .task-row{padding:12px 0}
+.dashboard-metrics{grid-template-columns:repeat(7,minmax(0,1fr))}
+@media(max-width:1100px){.task-create-form,.compact-task-form{grid-template-columns:1fr 1fr 1fr}.task-notes-field{grid-column:1/-1}.dashboard-metrics{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.task-create-form,.compact-task-form{grid-template-columns:1fr}.task-row{align-items:flex-start;flex-direction:column}.task-actions{width:100%}.task-actions form{margin-left:auto}}

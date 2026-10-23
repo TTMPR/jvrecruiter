@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { requireRecruiter } from "../../../../lib/auth";
 import AdminShell from "../../admin-shell";
 import RichTextEditor from "../../rich-text-editor";
+import PipelineBoard from "../../pipeline-board";
 import {
   setPublicPostingState,
-  updateApplicationStage,
   updateJob,
   updatePublicPosting
 } from "../../actions";
@@ -167,41 +167,13 @@ export default async function JobDetailPage({ params, searchParams }) {
       </div>
 
       <section className="panel top-gap">
-        <h2>Pipeline</h2>
-        <div className="pipeline">
-          {MAIN_STAGES.map((stage) => {
-            const items = (applications || []).filter((a) => a.stage === stage);
-            return (
-              <section className="pipeline-column" key={stage}>
-                <div className="pipeline-heading"><strong>{stage}</strong><span>{items.length}</span></div>
-                <div className="pipeline-cards">
-                  {items.map((app) => (
-                    <article className="candidate-card" key={app.id}>
-                      <Link href={`/admin/candidates/${app.candidate.id}`}>
-                        <strong>{app.candidate.full_name}</strong>
-                        <span>{[app.candidate.current_title, app.candidate.current_company].filter(Boolean).join(" · ") || "Candidate"}</span>
-                        <span>{app.candidate.location || ""}</span>
-                      </Link>
-                      <form action={updateApplicationStage} className="stage-form">
-                        <input type="hidden" name="application_id" value={app.id} />
-                        <select name="stage" defaultValue={app.stage}>
-                          {MAIN_STAGES.concat(["Rejected","Withdrawn","Archived"]).map((s) => <option key={s}>{s}</option>)}
-                        </select>
-                        {stage === "Interviewing" && interviewStages.length ? (
-                          <select name="interview_stage" defaultValue={app.interview_stage || ""}>
-                            <option value="">Interview step</option>
-                            {interviewStages.map((s) => <option key={s}>{s}</option>)}
-                          </select>
-                        ) : null}
-                        <button type="submit">Update</button>
-                      </form>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
+        <div className="section-heading">
+          <div>
+            <h2>Pipeline</h2>
+            <p className="muted">Drag candidates between stages. Changes save automatically.</p>
+          </div>
         </div>
+        <PipelineBoard applications={applications || []} interviewStages={interviewStages} />
       </section>
     </AdminShell>
   );

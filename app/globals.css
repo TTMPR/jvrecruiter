@@ -32,3 +32,24 @@ button,select,textarea{font:inherit}
 .role-summary{font-size:14px}
 .role-summary p{margin:4px 0 0}
 .role-summary ul,.role-summary ol{margin:6px 0 0 18px}
+
+.filter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:end}
+.filter-grid label{display:grid;gap:6px;font-size:13px;font-weight:700}
+.filter-grid input,.filter-grid select{width:100%;border:1px solid #cfd6d1;border-radius:10px;background:white;padding:10px 12px}
+.filter-actions{display:flex;gap:8px;align-items:center}
+.filter-actions button{border:0;border-radius:10px;background:#102d35;color:white;padding:10px 14px;font-weight:800;cursor:pointer}
+.candidate-directory-row .candidate-row-meta{display:flex;align-items:flex-end;gap:4px;text-align:right}
+.profile-meta{margin-top:16px!important;font-size:12px}
+.section-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:14px}
+.pipeline.is-saving{opacity:.78}
+.pipeline-column.drag-over{border-color:#7ea58e;background:#e7efe9;box-shadow:0 0 0 2px rgba(66,107,82,.08) inset}
+.draggable-card{cursor:grab;transition:transform .12s ease,box-shadow .12s ease}
+.draggable-card:active{cursor:grabbing}
+.draggable-card:hover{box-shadow:0 5px 16px rgba(16,45,53,.08);transform:translateY(-1px)}
+.activity-list{display:grid}
+.activity-row{display:flex;justify-content:space-between;gap:20px;padding:12px 0;border-bottom:1px solid #e4e8e4}
+.activity-row:last-child{border-bottom:0}
+.activity-row strong{text-transform:capitalize;font-size:13px}
+.activity-row span{font-size:12px;color:#718079}
+@media(max-width:900px){.filter-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.filter-grid{grid-template-columns:1fr}.candidate-directory-row .candidate-row-meta{align-items:flex-start;text-align:left}}

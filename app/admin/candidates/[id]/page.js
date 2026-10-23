@@ -3,11 +3,14 @@ import { notFound } from "next/navigation";
 import { requireRecruiter } from "../../../../lib/auth";
 import AdminShell from "../../admin-shell";
 import { gmailComposeUrl, googleCalendarUrl, mailtoUrl } from "../../communication-links";
+import { getGoogleConnection } from "../../../../lib/google";
 import {
   addCandidateNote,
   attachCandidateToJob,
   createInterview,
+  createInterviewCalendarEvent,
   createTask,
+  sendCandidateEmail,
   updateApplicationStage,
   updateCandidate,
   updateInterview,
@@ -48,9 +51,9 @@ export default async function CandidateDetailPage({ params }) {
   const { data: candidate } = await supabase.from("candidates").select("*").eq("id", id).maybeSingle();
   if (!candidate) notFound();
 
-  const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }] = await Promise.all([
+  const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }, { data: communications }] = await Promise.all([
     supabase.from("applications")
-      .select("id, stage, interview_stage, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, created_at, updated_at)")
+      .select("id, stage, interview_stage, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at)")
       .eq("candidate_id", id)
       .order("updated_at", { ascending:false }),
     supabase.from("candidate_notes")
@@ -70,9 +73,15 @@ export default async function CandidateDetailPage({ params }) {
       .select("id,title,task_type,priority,status,due_at,job:jobs(id,title)")
       .eq("candidate_id", id)
       .order("status", { ascending:true })
-      .order("due_at", { ascending:true, nullsFirst:false })
+      .order("due_at", { ascending:true, nullsFirst:false }),
+    supabase.from("communications")
+      .select("id,channel,direction,subject,recipient,status,occurred_at,provider_message_id,provider_event_id,metadata")
+      .eq("candidate_id", id)
+      .order("occurred_at", { ascending:false })
+      .limit(30)
   ]);
 
+  const googleConnection = await getGoogleConnection(supabase, recruiter.id);
   const existingJobIds = new Set((applications || []).map((a) => a.job?.id));
   const availableJobs = (jobs || []).filter((job) => !existingJobIds.has(job.id));
 
@@ -146,6 +155,42 @@ export default async function CandidateDetailPage({ params }) {
           </div>
         </section>
       </div>
+
+      <section className="panel top-gap">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Communication</p>
+            <h2>Email candidate</h2>
+          </div>
+          <Link className="secondary-button" href="/admin/integrations">
+            {googleConnection ? "Google connected" : "Connect Google"}
+          </Link>
+        </div>
+
+        {googleConnection && candidate.email ? (
+          <form action={sendCandidateEmail} className="stack-form">
+            <input type="hidden" name="candidate_id" value={candidate.id} />
+            <label>Subject
+              <input name="subject" required placeholder="Checking in" />
+            </label>
+            <label>Message
+              <textarea
+                name="body"
+                rows="6"
+                required
+                defaultValue={`Hi ${candidate.full_name},\n\n`}
+              />
+            </label>
+            <button type="submit">Send email</button>
+          </form>
+        ) : (
+          <p className="muted">
+            {!candidate.email
+              ? "Add an email address to this candidate before sending."
+              : "Connect Google Workspace to send directly from JVRecruit."}
+          </p>
+        )}
+      </section>
 
       <section className="panel top-gap">
         <h2>Add to a role</h2>
@@ -341,8 +386,17 @@ export default async function CandidateDetailPage({ params }) {
 
                           <div className="interview-actions">
                             <button type="submit">Save interview</button>
-                            {calendarUrl ? <a href={calendarUrl} target="_blank" rel="noreferrer">Add to Google Calendar</a> : null}
-                            {emailUrl ? <a href={emailUrl} target="_blank" rel="noreferrer">Draft in Gmail</a> : null}
+                            {googleConnection ? (
+                              interview.google_event_id ? (
+                                interview.google_calendar_link ? <a href={interview.google_calendar_link} target="_blank" rel="noreferrer">Open Calendar event</a> : null
+                              ) : (
+                                <form action={createInterviewCalendarEvent}>
+                                  <input type="hidden" name="interview_id" value={interview.id} />
+                                  <button type="submit">Create Google Calendar event</button>
+                                </form>
+                              )
+                            ) : calendarUrl ? <a href={calendarUrl} target="_blank" rel="noreferrer">Add to Google Calendar</a> : null}
+                            {googleConnection ? null : emailUrl ? <a href={emailUrl} target="_blank" rel="noreferrer">Draft in Gmail</a> : null}
                             {interview.meeting_url ? <a href={interview.meeting_url} target="_blank" rel="noreferrer">Open meeting</a> : null}
                           </div>
                         </form>
@@ -354,6 +408,27 @@ export default async function CandidateDetailPage({ params }) {
             </div>
           ))}
           {!applications?.length ? <p className="muted">Not currently attached to a role.</p> : null}
+        </div>
+      </section>
+
+      <section className="panel top-gap">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">History</p>
+            <h2>Communication history</h2>
+          </div>
+        </div>
+        <div className="communication-list">
+          {(communications || []).map((item) => (
+            <article className="communication-row" key={item.id}>
+              <div>
+                <strong>{item.channel === "email" ? "Email sent" : "Calendar event created"}</strong>
+                <span>{item.subject || item.recipient || "Google Workspace activity"}</span>
+              </div>
+              <span>{new Date(item.occurred_at).toLocaleString("en-US", { timeZone: "America/Puerto_Rico", dateStyle: "short", timeStyle: "short" })}</span>
+            </article>
+          ))}
+          {!communications?.length ? <p className="muted">No Google communications recorded yet.</p> : null}
         </div>
       </section>
 

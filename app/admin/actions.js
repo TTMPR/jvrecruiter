@@ -12,6 +12,13 @@ function clean(value) {
   return v || null;
 }
 
+function numberOrNull(value) {
+  const v = clean(value);
+  if (v === null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 function localDateTimeToIso(value) {
   const v = clean(value);
   if (!v) return null;
@@ -936,6 +943,191 @@ export async function addClientFeedback(formData) {
     actor_id: recruiter.id,
     activity_type: "client_feedback_added",
     details: { feedback_id: row.id, feedback_type: feedbackType, reason, next_step: nextStep }
+  });
+
+  revalidatePath(`/admin/candidates/${application.candidate_id}`);
+  revalidatePath(`/admin/jobs/${application.job_id}`);
+  revalidatePath("/admin/dashboard");
+}
+
+
+export async function saveOffer(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const applicationId = clean(formData.get("application_id"));
+  const offerId = clean(formData.get("offer_id"));
+  const status = clean(formData.get("status")) || "draft";
+  if (!applicationId || !["draft","extended","accepted","declined","withdrawn"].includes(status)) return;
+
+  const { data: application, error: appError } = await supabase
+    .from("applications")
+    .select("candidate_id,job_id")
+    .eq("id", applicationId)
+    .single();
+  if (appError) throw appError;
+
+  const now = new Date().toISOString();
+  const payload = {
+    application_id: applicationId,
+    recruiter_id: recruiter.id,
+    status,
+    base_salary: numberOrNull(formData.get("base_salary")),
+    bonus: numberOrNull(formData.get("bonus")),
+    total_comp: numberOrNull(formData.get("total_comp")),
+    currency: clean(formData.get("currency")) || "USD",
+    equity: clean(formData.get("equity")),
+    sign_on_bonus: numberOrNull(formData.get("sign_on_bonus")),
+    start_date: clean(formData.get("start_date")),
+    expiration_date: clean(formData.get("expiration_date")),
+    notes: clean(formData.get("notes")),
+    extended_at: status === "extended" || status === "accepted" || status === "declined"
+      ? clean(formData.get("extended_at")) || now
+      : null,
+    responded_at: ["accepted","declined"].includes(status) ? now : null,
+    updated_at: now
+  };
+
+  let offer;
+  if (offerId) {
+    const { data, error } = await supabase
+      .from("offers")
+      .update(payload)
+      .eq("id", offerId)
+      .select("*")
+      .single();
+    if (error) throw error;
+    offer = data;
+  } else {
+    const { data, error } = await supabase
+      .from("offers")
+      .insert(payload)
+      .select("*")
+      .single();
+    if (error) throw error;
+    offer = data;
+  }
+
+  let nextStage = null;
+  if (status === "extended") nextStage = "Offer";
+  if (status === "accepted") nextStage = "Placed";
+
+  if (nextStage) {
+    const { error: stageError } = await supabase.from("applications").update({
+      stage: nextStage,
+      interview_stage: null,
+      disposition: status === "accepted" ? "placed" : null,
+      disposition_reason: status === "accepted" ? "Offer accepted" : null,
+      disposition_at: status === "accepted" ? now : null,
+      updated_at: now
+    }).eq("id", applicationId);
+    if (stageError) throw stageError;
+  }
+
+  if (status === "accepted") {
+    const placedComp = offer.total_comp ?? offer.base_salary ?? null;
+    const { error: placementError } = await supabase.from("placements").upsert({
+      application_id: applicationId,
+      offer_id: offer.id,
+      recruiter_id: recruiter.id,
+      start_date: offer.start_date,
+      placed_compensation: placedComp,
+      currency: offer.currency || "USD",
+      updated_at: now
+    }, { onConflict: "application_id" });
+    if (placementError) throw placementError;
+  }
+
+  await supabase.from("activities").insert({
+    candidate_id: application.candidate_id,
+    application_id: applicationId,
+    actor_id: recruiter.id,
+    activity_type:
+      status === "accepted" ? "offer_accepted"
+      : status === "declined" ? "offer_declined"
+      : status === "extended" ? "offer_extended"
+      : "offer_saved",
+    details: {
+      offer_id: offer.id,
+      status,
+      base_salary: offer.base_salary,
+      total_comp: offer.total_comp,
+      start_date: offer.start_date
+    }
+  });
+
+  revalidatePath(`/admin/candidates/${application.candidate_id}`);
+  revalidatePath(`/admin/jobs/${application.job_id}`);
+  revalidatePath("/admin/dashboard");
+}
+
+export async function savePlacement(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const applicationId = clean(formData.get("application_id"));
+  if (!applicationId) return;
+
+  const { data: application, error: appError } = await supabase
+    .from("applications")
+    .select("candidate_id,job_id")
+    .eq("id", applicationId)
+    .single();
+  if (appError) throw appError;
+
+  const feeType = clean(formData.get("fee_type"));
+  if (feeType && !["percentage","flat"].includes(feeType)) return;
+
+  const placedComp = numberOrNull(formData.get("placed_compensation"));
+  const feePercentage = numberOrNull(formData.get("fee_percentage"));
+  const flatFee = numberOrNull(formData.get("estimated_fee"));
+  const estimatedFee =
+    feeType === "percentage" && placedComp !== null && feePercentage !== null
+      ? Math.round((placedComp * feePercentage / 100) * 100) / 100
+      : flatFee;
+
+  const invoiceStatus = clean(formData.get("invoice_status")) || "not_invoiced";
+  if (!["not_invoiced","invoiced","paid","adjusted","cancelled"].includes(invoiceStatus)) return;
+
+  const now = new Date().toISOString();
+  const { data: placement, error } = await supabase.from("placements").upsert({
+    application_id: applicationId,
+    recruiter_id: recruiter.id,
+    start_date: clean(formData.get("start_date")),
+    placed_compensation: placedComp,
+    currency: clean(formData.get("currency")) || "USD",
+    fee_type: feeType,
+    fee_percentage: feePercentage,
+    estimated_fee: estimatedFee,
+    final_fee: numberOrNull(formData.get("final_fee")),
+    invoice_status: invoiceStatus,
+    invoice_date: clean(formData.get("invoice_date")),
+    payment_date: clean(formData.get("payment_date")),
+    guarantee_end_date: clean(formData.get("guarantee_end_date")),
+    notes: clean(formData.get("notes")),
+    updated_at: now
+  }, { onConflict: "application_id" }).select("*").single();
+
+  if (error) throw error;
+
+  const { error: stageError } = await supabase.from("applications").update({
+    stage: "Placed",
+    interview_stage: null,
+    disposition: "placed",
+    disposition_reason: "Placement recorded",
+    disposition_at: now,
+    updated_at: now
+  }).eq("id", applicationId);
+  if (stageError) throw stageError;
+
+  await supabase.from("activities").insert({
+    candidate_id: application.candidate_id,
+    application_id: applicationId,
+    actor_id: recruiter.id,
+    activity_type: "placement_updated",
+    details: {
+      placement_id: placement.id,
+      start_date: placement.start_date,
+      estimated_fee: placement.estimated_fee,
+      final_fee: placement.final_fee,
+      invoice_status: placement.invoice_status
+    }
   });
 
   revalidatePath(`/admin/candidates/${application.candidate_id}`);

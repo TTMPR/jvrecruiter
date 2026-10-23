@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRecruiter } from "../../../../lib/auth";
 import AdminShell from "../../admin-shell";
+import { gmailComposeUrl, googleCalendarUrl, mailtoUrl } from "../../communication-links";
 import {
   addCandidateNote,
   attachCandidateToJob,
@@ -49,7 +50,7 @@ export default async function CandidateDetailPage({ params }) {
 
   const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }] = await Promise.all([
     supabase.from("applications")
-      .select("id, stage, interview_stage, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, created_at, updated_at)")
+      .select("id, stage, interview_stage, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, created_at, updated_at)")
       .eq("candidate_id", id)
       .order("updated_at", { ascending:false }),
     supabase.from("candidate_notes")
@@ -91,7 +92,21 @@ export default async function CandidateDetailPage({ params }) {
           <h1>{candidate.full_name}</h1>
           <p className="muted">{[candidate.current_title, candidate.current_company, candidate.location].filter(Boolean).join(" · ")}</p>
         </div>
-        {resumeUrl ? <a className="primary-button" href={resumeUrl}>Open résumé</a> : null}
+        <div className="candidate-header-actions">
+          {candidate.email ? (
+            <a
+              className="secondary-button"
+              href={mailtoUrl({
+                to: candidate.email,
+                subject: "Checking in",
+                body: `Hi ${candidate.full_name},\n\n`
+              })}
+            >
+              Email candidate
+            </a>
+          ) : null}
+          {resumeUrl ? <a className="primary-button" href={resumeUrl}>Open résumé</a> : null}
+        </div>
       </header>
 
       <div className="two-column">
@@ -236,6 +251,17 @@ export default async function CandidateDetailPage({ params }) {
                   <label>Date & time
                     <input name="scheduled_at" type="datetime-local" />
                   </label>
+                  <label>Duration
+                    <select name="duration_minutes" defaultValue="30">
+                      <option value="30">30 min</option>
+                      <option value="45">45 min</option>
+                      <option value="60">60 min</option>
+                      <option value="90">90 min</option>
+                    </select>
+                  </label>
+                  <label>Meeting link
+                    <input name="meeting_url" type="url" placeholder="Google Meet / Zoom / Teams" />
+                  </label>
                   <label className="interview-notes-field">Notes
                     <input name="notes" placeholder="Optional scheduling note" />
                   </label>
@@ -245,33 +271,83 @@ export default async function CandidateDetailPage({ params }) {
                 <div className="interview-list">
                   {(app.interviews || [])
                     .sort((a, b) => new Date(b.scheduled_at || b.created_at) - new Date(a.scheduled_at || a.created_at))
-                    .map((interview) => (
-                      <form action={updateInterview} className="interview-card" key={interview.id}>
-                        <input type="hidden" name="interview_id" value={interview.id} />
-                        <div className="interview-card-header">
-                          <div>
-                            <strong>{interview.stage_name}</strong>
-                            <span>{displayPuertoRicoDate(interview.scheduled_at)}</span>
+                    .map((interview) => {
+                      const calendarUrl = googleCalendarUrl({
+                        title: `${interview.stage_name}: ${candidate.full_name} — ${app.job.title}`,
+                        start: interview.scheduled_at,
+                        durationMinutes: interview.duration_minutes || 30,
+                        details: [
+                          `Candidate: ${candidate.full_name}`,
+                          `Role: ${app.job.title}`,
+                          interview.notes || null,
+                          interview.meeting_url ? `Meeting: ${interview.meeting_url}` : null
+                        ].filter(Boolean).join("\n\n"),
+                        location: interview.meeting_url || undefined,
+                        guestEmail: candidate.email || undefined
+                      });
+
+                      const emailUrl = candidate.email ? gmailComposeUrl({
+                        to: candidate.email,
+                        subject: `${interview.stage_name} — ${app.job.title}`,
+                        body: [
+                          `Hi ${candidate.full_name},`,
+                          "",
+                          `Confirming your ${interview.stage_name} for the ${app.job.title} opportunity.`,
+                          interview.scheduled_at ? `Date/time: ${displayPuertoRicoDate(interview.scheduled_at)} (Puerto Rico / Atlantic Time)` : null,
+                          interview.duration_minutes ? `Duration: ${interview.duration_minutes} minutes` : null,
+                          interview.meeting_url ? `Meeting link: ${interview.meeting_url}` : null,
+                          "",
+                          "Best,",
+                          recruiter.name
+                        ].filter((line) => line !== null).join("\n")
+                      }) : null;
+
+                      return (
+                        <form action={updateInterview} className="interview-card" key={interview.id}>
+                          <input type="hidden" name="interview_id" value={interview.id} />
+                          <div className="interview-card-header">
+                            <div>
+                              <strong>{interview.stage_name}</strong>
+                              <span>{displayPuertoRicoDate(interview.scheduled_at)}</span>
+                            </div>
+                            <span className={`interview-status ${interview.status}`}>{interview.status.replace("_", " ")}</span>
                           </div>
-                          <span className={`interview-status ${interview.status}`}>{interview.status.replace("_", " ")}</span>
-                        </div>
 
-                        <div className="interview-edit-grid">
-                          <label>Step<input name="stage_name" defaultValue={interview.stage_name} required /></label>
-                          <label>Date & time<input name="scheduled_at" type="datetime-local" defaultValue={toPuertoRicoInput(interview.scheduled_at)} /></label>
-                          <label>Status
-                            <select name="status" defaultValue={interview.status}>
-                              {INTERVIEW_STATUSES.map((status) => <option value={status} key={status}>{status.replace("_", " ")}</option>)}
-                            </select>
+                          <div className="interview-edit-grid">
+                            <label>Step<input name="stage_name" defaultValue={interview.stage_name} required /></label>
+                            <label>Date & time<input name="scheduled_at" type="datetime-local" defaultValue={toPuertoRicoInput(interview.scheduled_at)} /></label>
+                            <label>Duration
+                              <select name="duration_minutes" defaultValue={String(interview.duration_minutes || 30)}>
+                                <option value="30">30 min</option>
+                                <option value="45">45 min</option>
+                                <option value="60">60 min</option>
+                                <option value="90">90 min</option>
+                              </select>
+                            </label>
+                            <label>Status
+                              <select name="status" defaultValue={interview.status}>
+                                {INTERVIEW_STATUSES.map((status) => <option value={status} key={status}>{status.replace("_", " ")}</option>)}
+                              </select>
+                            </label>
+                          </div>
+
+                          <label>Meeting link
+                            <input name="meeting_url" type="url" defaultValue={interview.meeting_url || ""} placeholder="Google Meet / Zoom / Teams" />
                           </label>
-                        </div>
 
-                        <label>Interview notes
-                          <textarea name="notes" rows="3" defaultValue={interview.notes || ""} placeholder="Feedback, outcome, follow-up..." />
-                        </label>
-                        <button type="submit">Save interview</button>
-                      </form>
-                    ))}
+                          <label>Interview notes
+                            <textarea name="notes" rows="3" defaultValue={interview.notes || ""} placeholder="Feedback, outcome, follow-up..." />
+                          </label>
+
+                          <div className="interview-actions">
+                            <button type="submit">Save interview</button>
+                            {calendarUrl ? <a href={calendarUrl} target="_blank" rel="noreferrer">Add to Google Calendar</a> : null}
+                            {emailUrl ? <a href={emailUrl} target="_blank" rel="noreferrer">Draft in Gmail</a> : null}
+                            {interview.meeting_url ? <a href={interview.meeting_url} target="_blank" rel="noreferrer">Open meeting</a> : null}
+                          </div>
+                        </form>
+                      );
+                    })}
                   {!app.interviews?.length ? <p className="muted">No interviews scheduled yet.</p> : null}
                 </div>
               </div>

@@ -298,3 +298,44 @@ export async function updateJobStatus(formData) {
   revalidatePath("/admin/jobs");
   revalidatePath(`/admin/jobs/${jobId}`);
 }
+
+
+export async function updateJob(formData) {
+  const { supabase } = await requireRecruiter();
+  const jobId = clean(formData.get("job_id"));
+  if (!jobId) return;
+
+  const interviewStages = String(formData.get("interview_stages") || "")
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  await supabase.from("jobs").update({
+    title: clean(formData.get("title")),
+    department: clean(formData.get("department")),
+    client_name: clean(formData.get("client_name")),
+    hiring_manager: clean(formData.get("hiring_manager")),
+    client_contact: clean(formData.get("client_contact")),
+    internal_notes: clean(formData.get("internal_notes")),
+    interview_stages: interviewStages,
+    updated_at: new Date().toISOString()
+  }).eq("id", jobId);
+
+  await supabase.from("job_posts").update({
+    title: clean(formData.get("title")),
+    department: clean(formData.get("department")),
+    location: clean(formData.get("location")),
+    workplace: clean(formData.get("workplace")),
+    employment_type: clean(formData.get("employment_type")),
+    compensation: clean(formData.get("compensation")),
+    short_summary: clean(formData.get("short_summary")),
+    description: clean(formData.get("description")),
+    responsibilities: clean(formData.get("responsibilities")),
+    requirements: clean(formData.get("requirements")),
+    updated_at: new Date().toISOString()
+  }).eq("job_id", jobId);
+
+  revalidatePath("/");
+  revalidatePath("/admin/jobs");
+  revalidatePath(`/admin/jobs/${jobId}`);
+}

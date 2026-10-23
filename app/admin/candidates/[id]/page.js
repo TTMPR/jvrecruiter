@@ -2,7 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRecruiter } from "../../../../lib/auth";
 import AdminShell from "../../admin-shell";
-import { addCandidateNote, attachCandidateToJob, updateApplicationStage } from "../../actions";
+import {
+  addCandidateNote,
+  attachCandidateToJob,
+  updateApplicationStage,
+  updateCandidate
+} from "../../actions";
 
 const STAGES = ["Applied","Prescreen","Submitted","Client Sub","Interviewing","Offer","Placed","Rejected","Withdrawn","Archived"];
 
@@ -13,7 +18,7 @@ export default async function CandidateDetailPage({ params }) {
   const { data: candidate } = await supabase.from("candidates").select("*").eq("id", id).maybeSingle();
   if (!candidate) notFound();
 
-  const [{ data: applications }, { data: notes }, { data: jobs }] = await Promise.all([
+  const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }] = await Promise.all([
     supabase.from("applications")
       .select("id, stage, interview_stage, job:jobs(id,title)")
       .eq("candidate_id", id)
@@ -25,7 +30,12 @@ export default async function CandidateDetailPage({ params }) {
     supabase.from("jobs")
       .select("id,title,status")
       .in("status", ["draft","published","paused"])
-      .order("updated_at", { ascending:false })
+      .order("updated_at", { ascending:false }),
+    supabase.from("activities")
+      .select("id, activity_type, details, created_at")
+      .eq("candidate_id", id)
+      .order("created_at", { ascending:false })
+      .limit(20)
   ]);
 
   const existingJobIds = new Set((applications || []).map((a) => a.job?.id));
@@ -52,14 +62,25 @@ export default async function CandidateDetailPage({ params }) {
 
       <div className="two-column">
         <section className="panel">
-          <h2>Profile</h2>
-          <dl className="detail-list">
-            <div><dt>Email</dt><dd>{candidate.email || "—"}</dd></div>
-            <div><dt>Phone</dt><dd>{candidate.phone || "—"}</dd></div>
-            <div><dt>LinkedIn</dt><dd>{candidate.linkedin_url ? <a href={candidate.linkedin_url} target="_blank" rel="noreferrer">Open profile</a> : "—"}</dd></div>
-            <div><dt>Source</dt><dd>{candidate.source}</dd></div>
-            <div><dt>Résumé</dt><dd>{candidate.latest_resume_name || "—"}</dd></div>
-          </dl>
+          <p className="eyebrow">Candidate master</p>
+          <h2>Edit profile</h2>
+          <form action={updateCandidate} className="stack-form">
+            <input type="hidden" name="candidate_id" value={candidate.id} />
+            <div className="form-grid">
+              <label>Full name<input name="full_name" defaultValue={candidate.full_name || ""} required /></label>
+              <label>Email<input name="email" type="email" defaultValue={candidate.email || ""} /></label>
+              <label>Phone<input name="phone" defaultValue={candidate.phone || ""} /></label>
+              <label>Location<input name="location" defaultValue={candidate.location || ""} /></label>
+              <label>Current title<input name="current_title" defaultValue={candidate.current_title || ""} /></label>
+              <label>Current company<input name="current_company" defaultValue={candidate.current_company || ""} /></label>
+              <label>LinkedIn<input name="linkedin_url" type="url" defaultValue={candidate.linkedin_url || ""} /></label>
+              <label>Source<input name="source" defaultValue={candidate.source || ""} /></label>
+            </div>
+            <button type="submit">Save candidate</button>
+          </form>
+          <p className="muted profile-meta">
+            Résumé: {candidate.latest_resume_name || "None"} · Last updated {new Date(candidate.updated_at).toLocaleDateString()}
+          </p>
         </section>
 
         <section className="panel">
@@ -107,6 +128,20 @@ export default async function CandidateDetailPage({ params }) {
               </form>
             </div>
           ))}
+          {!applications?.length ? <p className="muted">Not currently attached to a role.</p> : null}
+        </div>
+      </section>
+
+      <section className="panel top-gap">
+        <h2>Recent activity</h2>
+        <div className="activity-list">
+          {(activities || []).map((activity) => (
+            <div className="activity-row" key={activity.id}>
+              <strong>{activity.activity_type.replaceAll("_", " ")}</strong>
+              <span>{new Date(activity.created_at).toLocaleString()}</span>
+            </div>
+          ))}
+          {!activities?.length ? <p className="muted">No activity yet.</p> : null}
         </div>
       </section>
     </AdminShell>

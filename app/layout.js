@@ -21,6 +21,9 @@ export const metadata = {
     card: "summary_large_image",
     title: "JVRecruit | Technical, Product, Data & AI Opportunities",
     description: "Curated technical, product, data, AI and leadership opportunities with a thoughtful recruiting experience."
+  },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || undefined
   }
 };
 

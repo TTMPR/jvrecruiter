@@ -384,9 +384,10 @@ export async function updateJob(formData) {
 export async function updatePublicPosting(formData) {
   const { supabase } = await requireRecruiter();
   const jobId = clean(formData.get("job_id"));
+  const intent = clean(formData.get("intent")) || "save";
   if (!jobId) return;
 
-  const { error } = await supabase.from("job_posts").update({
+  const payload = {
     title: clean(formData.get("public_title")),
     department: clean(formData.get("department")),
     location: clean(formData.get("location")),
@@ -398,9 +399,44 @@ export async function updatePublicPosting(formData) {
     responsibilities: clean(formData.get("responsibilities")),
     requirements: clean(formData.get("requirements")),
     updated_at: new Date().toISOString()
-  }).eq("job_id", jobId);
+  };
+
+  const { error } = await supabase
+    .from("job_posts")
+    .update(payload)
+    .eq("job_id", jobId);
 
   if (error) throw error;
+
+  if (intent === "publish") {
+    const missing = [];
+    if (!payload.title) missing.push("Public title");
+    if (!payload.location) missing.push("Location");
+    if (!payload.short_summary) missing.push("Short summary");
+    if (!payload.description) missing.push("About the role");
+
+    if (missing.length) {
+      redirect(`/admin/jobs/${jobId}?publish_error=${encodeURIComponent("Complete before publishing: " + missing.join(", "))}#publish`);
+    }
+
+    const now = new Date().toISOString();
+    const [{ error: jobError }, { error: publishError }] = await Promise.all([
+      supabase.from("jobs").update({ status: "published", updated_at: now }).eq("id", jobId),
+      supabase.from("job_posts").update({
+        published: true,
+        published_at: now,
+        updated_at: now
+      }).eq("job_id", jobId)
+    ]);
+
+    if (jobError) throw jobError;
+    if (publishError) throw publishError;
+
+    revalidatePath("/");
+    revalidatePath("/admin/jobs");
+    revalidatePath(`/admin/jobs/${jobId}`);
+    redirect(`/admin/jobs/${jobId}?published=1#publish`);
+  }
 
   revalidatePath("/");
   revalidatePath("/admin/jobs");
@@ -429,7 +465,7 @@ export async function setPublicPostingState(formData) {
     if (!post.description) missing.push("description");
 
     if (missing.length) {
-      redirect(`/admin/jobs/${jobId}?publish_error=${encodeURIComponent("Complete before publishing: " + missing.join(", "))}`);
+      redirect(`/admin/jobs/${jobId}?publish_error=${encodeURIComponent("Complete before publishing: " + missing.join(", "))}#publish`);
     }
 
     const now = new Date().toISOString();

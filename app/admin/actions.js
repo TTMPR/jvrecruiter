@@ -275,3 +275,26 @@ export async function attachCandidateToJob(formData) {
   revalidatePath(`/admin/candidates/${candidateId}`);
   revalidatePath(`/admin/jobs/${jobId}`);
 }
+
+
+export async function updateJobStatus(formData) {
+  const { supabase } = await requireRecruiter();
+  const jobId = clean(formData.get("job_id"));
+  const status = clean(formData.get("status"));
+  if (!jobId || !["draft","published","paused","closed"].includes(status)) return;
+
+  await supabase.from("jobs").update({
+    status,
+    updated_at: new Date().toISOString()
+  }).eq("id", jobId);
+
+  await supabase.from("job_posts").update({
+    published: status === "published",
+    published_at: status === "published" ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString()
+  }).eq("job_id", jobId);
+
+  revalidatePath("/");
+  revalidatePath("/admin/jobs");
+  revalidatePath(`/admin/jobs/${jobId}`);
+}

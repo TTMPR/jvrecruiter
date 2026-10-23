@@ -1,4 +1,5 @@
 import { requireRecruiter } from "../../../lib/auth";
+import AdminShell from "../admin-shell";
 
 export default async function DashboardPage() {
   const { recruiter, supabase } = await requireRecruiter();
@@ -26,7 +27,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <>
+    <AdminShell recruiter={recruiter}>
       <header className="admin-header">
         <div>
           <p className="eyebrow">Dashboard</p>
@@ -50,6 +51,6 @@ export default async function DashboardPage() {
           as JVRecruit starts receiving live data.
         </p>
       </section>
-    </>
+    </AdminShell>
   );
 }

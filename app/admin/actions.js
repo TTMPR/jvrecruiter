@@ -1442,3 +1442,78 @@ export async function revokeCandidatePortalAccess(formData) {
 
   revalidatePath(`/admin/candidates/${application.candidate_id}`);
 }
+
+
+export async function addCandidatePortalUpdate(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const applicationId = clean(formData.get("application_id"));
+  const updateType = clean(formData.get("update_type")) || "general";
+  const title = clean(formData.get("title"));
+  const body = clean(formData.get("body"));
+
+  if (!applicationId || !title || !["general","status","interview","resume_request","next_step"].includes(updateType)) return;
+
+  const { data: application, error: appError } = await supabase
+    .from("applications")
+    .select("candidate_id,job_id")
+    .eq("id", applicationId)
+    .single();
+
+  if (appError) throw appError;
+
+  const { data: update, error } = await supabase
+    .from("candidate_portal_updates")
+    .insert({
+      application_id: applicationId,
+      recruiter_id: recruiter.id,
+      update_type: updateType,
+      title,
+      body,
+      visible: true
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+
+  await supabase.from("activities").insert({
+    candidate_id: application.candidate_id,
+    application_id: applicationId,
+    actor_id: recruiter.id,
+    activity_type: "candidate_portal_update_published",
+    details: { update_id: update.id, update_type: updateType, title }
+  });
+
+  revalidatePath(`/admin/candidates/${application.candidate_id}`);
+}
+
+export async function hideCandidatePortalUpdate(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const updateId = clean(formData.get("update_id"));
+  if (!updateId) return;
+
+  const { data: update, error: fetchError } = await supabase
+    .from("candidate_portal_updates")
+    .select("id,application_id,application:applications(candidate_id,job_id)")
+    .eq("id", updateId)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  const { error } = await supabase
+    .from("candidate_portal_updates")
+    .update({ visible: false })
+    .eq("id", updateId);
+
+  if (error) throw error;
+
+  await supabase.from("activities").insert({
+    candidate_id: update.application.candidate_id,
+    application_id: update.application_id,
+    actor_id: recruiter.id,
+    activity_type: "candidate_portal_update_hidden",
+    details: { update_id: updateId }
+  });
+
+  revalidatePath(`/admin/candidates/${update.application.candidate_id}`);
+}

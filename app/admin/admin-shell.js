@@ -11,6 +11,7 @@ export default function AdminShell({ recruiter, children }) {
             <Link href="/admin/dashboard">Dashboard</Link>
             <Link href="/admin/jobs">Jobs</Link>
             <Link href="/admin/candidates">Candidates</Link>
+            <Link href="/admin/tasks">Tasks</Link>
           </nav>
         </div>
 

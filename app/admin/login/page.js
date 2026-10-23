@@ -31,7 +31,6 @@ export default async function LoginPage({ searchParams }) {
               name="email"
               type="email"
               autoComplete="email"
-              defaultValue="joel@towerh.com"
               required
             />
           </label>

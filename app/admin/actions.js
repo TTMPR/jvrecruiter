@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRecruiter } from "../../lib/auth";
+import { createGoogleCalendarEvent, sendGoogleEmail } from "../../lib/google";
 
 const STAGES = ["Applied","Prescreen","Submitted","Client Sub","Interviewing","Offer","Placed","Rejected","Withdrawn","Archived"];
 
@@ -664,5 +665,136 @@ export async function updateTaskStatus(formData) {
 
   if (before.job_id) revalidatePath(`/admin/jobs/${before.job_id}`);
   revalidatePath("/admin/tasks");
+  revalidatePath("/admin/dashboard");
+}
+
+
+export async function sendCandidateEmail(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const candidateId = clean(formData.get("candidate_id"));
+  const subject = clean(formData.get("subject"));
+  const body = clean(formData.get("body"));
+  if (!candidateId || !subject || !body) return;
+
+  const { data: candidate, error: candidateError } = await supabase
+    .from("candidates")
+    .select("id,full_name,email")
+    .eq("id", candidateId)
+    .single();
+
+  if (candidateError) throw candidateError;
+  if (!candidate.email) throw new Error("Candidate does not have an email address");
+
+  const message = await sendGoogleEmail({
+    supabase,
+    recruiterId: recruiter.id,
+    to: candidate.email,
+    subject,
+    body
+  });
+
+  const { error: communicationError } = await supabase.from("communications").insert({
+    recruiter_id: recruiter.id,
+    candidate_id: candidateId,
+    channel: "email",
+    direction: "outbound",
+    subject,
+    body,
+    recipient: candidate.email,
+    provider: "google",
+    provider_message_id: message.id || null,
+    status: "sent",
+    occurred_at: new Date().toISOString(),
+    metadata: { thread_id: message.threadId || null }
+  });
+
+  if (communicationError) throw communicationError;
+
+  await supabase.from("activities").insert({
+    candidate_id: candidateId,
+    actor_id: recruiter.id,
+    activity_type: "email_sent",
+    details: { subject, provider_message_id: message.id || null }
+  });
+
+  revalidatePath(`/admin/candidates/${candidateId}`);
+  revalidatePath("/admin/dashboard");
+}
+
+export async function createInterviewCalendarEvent(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const interviewId = clean(formData.get("interview_id"));
+  if (!interviewId) return;
+
+  const { data: interview, error } = await supabase
+    .from("interviews")
+    .select("id,stage_name,scheduled_at,duration_minutes,meeting_url,notes,google_event_id,google_calendar_link,application:applications(id,candidate:candidates(id,full_name,email),job:jobs(id,title))")
+    .eq("id", interviewId)
+    .single();
+
+  if (error) throw error;
+  if (!interview.scheduled_at) throw new Error("Schedule the interview before creating a calendar event");
+
+  if (interview.google_event_id) {
+    revalidatePath(`/admin/candidates/${interview.application.candidate.id}`);
+    return;
+  }
+
+  const event = await createGoogleCalendarEvent({
+    supabase,
+    recruiterId: recruiter.id,
+    summary: `${interview.stage_name}: ${interview.application.candidate.full_name} — ${interview.application.job.title}`,
+    description: [
+      `Candidate: ${interview.application.candidate.full_name}`,
+      `Role: ${interview.application.job.title}`,
+      interview.notes || null,
+      interview.meeting_url ? `Meeting: ${interview.meeting_url}` : null
+    ].filter(Boolean).join("\n\n"),
+    start: interview.scheduled_at,
+    durationMinutes: interview.duration_minutes || 30,
+    meetingUrl: interview.meeting_url,
+    attendeeEmail: interview.application.candidate.email || undefined
+  });
+
+  const { error: updateError } = await supabase.from("interviews").update({
+    google_event_id: event.id || null,
+    google_calendar_link: event.htmlLink || null,
+    updated_at: new Date().toISOString()
+  }).eq("id", interviewId);
+
+  if (updateError) throw updateError;
+
+  const { error: communicationError } = await supabase.from("communications").insert({
+    recruiter_id: recruiter.id,
+    candidate_id: interview.application.candidate.id,
+    job_id: interview.application.job.id,
+    application_id: interview.application.id,
+    interview_id: interviewId,
+    channel: "calendar",
+    direction: "system",
+    subject: `${interview.stage_name}: ${interview.application.candidate.full_name}`,
+    recipient: interview.application.candidate.email || null,
+    provider: "google",
+    provider_event_id: event.id || null,
+    status: "created",
+    occurred_at: new Date().toISOString(),
+    metadata: { html_link: event.htmlLink || null }
+  });
+
+  if (communicationError) throw communicationError;
+
+  await supabase.from("activities").insert({
+    candidate_id: interview.application.candidate.id,
+    application_id: interview.application.id,
+    actor_id: recruiter.id,
+    activity_type: "calendar_event_created",
+    details: {
+      interview_id: interviewId,
+      provider_event_id: event.id || null
+    }
+  });
+
+  revalidatePath(`/admin/candidates/${interview.application.candidate.id}`);
+  revalidatePath(`/admin/jobs/${interview.application.job.id}`);
   revalidatePath("/admin/dashboard");
 }

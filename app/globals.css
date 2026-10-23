@@ -75,3 +75,23 @@ button,select,textarea{font:inherit}
 .interview-status.scheduled{background:#f3f5ef;color:#5c695f}
 @media(max-width:900px){.interview-form{grid-template-columns:1fr 1fr}.interview-notes-field{grid-column:1/-1}.interview-edit-grid{grid-template-columns:1fr}}
 @media(max-width:560px){.interview-form{grid-template-columns:1fr}}
+
+.dashboard-metrics{grid-template-columns:repeat(6,minmax(0,1fr))}
+.dashboard-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:20px}
+.dashboard-role-row{align-items:flex-start}
+.dashboard-row-right{display:flex!important;align-items:flex-end!important;gap:5px!important;text-align:right}
+.attention-pill,.healthy-pill,.aging-badge{display:inline-flex!important;align-items:center;justify-content:center;border-radius:999px;padding:4px 8px;font-size:11px!important;font-weight:800}
+.attention-pill{background:#fff4e8;color:#87510f;border:1px solid #efd1a9}
+.healthy-pill{background:#e8f4ec;color:#245e3f;border:1px solid #b9d8c2}
+.aging-badge{background:#f2f4f1;color:#5e6c65;border:1px solid #d8dfda}
+.aging-badge.warn{background:#fff4e8;color:#87510f;border-color:#efd1a9}
+.dashboard-list{display:grid}
+.dashboard-item{display:flex;justify-content:space-between;gap:18px;padding:14px 0;border-bottom:1px solid #e4e8e4}
+.dashboard-item:last-child{border-bottom:0}
+.dashboard-item>div{display:grid;gap:4px}
+.dashboard-item span,.dashboard-item time{font-size:12px;color:#718079}
+.dashboard-activity .activity-row>div{display:grid;gap:3px}
+.dashboard-activity .activity-row>div span{font-size:12px;color:#718079}
+@media(max-width:1100px){.dashboard-metrics{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.dashboard-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.dashboard-metrics{grid-template-columns:1fr 1fr}.dashboard-item{flex-direction:column}}

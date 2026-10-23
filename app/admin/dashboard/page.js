@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireRecruiter } from "../../../lib/auth";
 import AdminShell from "../admin-shell";
+import { updateTaskStatus } from "../actions";
 
 const ACTIVE_STAGES = ["Applied","Prescreen","Submitted","Client Sub","Interviewing","Offer"];
 
@@ -206,7 +207,14 @@ export default async function DashboardPage() {
                 </div>
                 <span>{[task.candidate?.full_name, task.job?.title, task.due_at ? new Date(task.due_at).toLocaleString("en-US", { timeZone: "America/Puerto_Rico", dateStyle: "short", timeStyle: "short" }) : null].filter(Boolean).join(" · ")}</span>
               </div>
-              <Link className="secondary-button" href={task.candidate?.id ? `/admin/candidates/${task.candidate.id}` : task.job?.id ? `/admin/jobs/${task.job.id}` : "/admin/tasks"}>Open</Link>
+              <div className="task-actions">
+                <Link href={task.candidate?.id ? `/admin/candidates/${task.candidate.id}` : task.job?.id ? `/admin/jobs/${task.job.id}` : "/admin/tasks"}>Open</Link>
+                <form action={updateTaskStatus}>
+                  <input type="hidden" name="task_id" value={task.id} />
+                  <input type="hidden" name="status" value="done" />
+                  <button type="submit">Done</button>
+                </form>
+              </div>
             </article>
           ))}
           {!attentionTasks.length ? <p className="muted">Nothing overdue or due today.</p> : null}

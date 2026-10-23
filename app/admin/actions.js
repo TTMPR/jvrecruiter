@@ -322,3 +322,95 @@ export async function updateJob(formData) {
   revalidatePath("/admin/jobs");
   revalidatePath(`/admin/jobs/${jobId}`);
 }
+
+
+export async function updatePublicPosting(formData) {
+  const { supabase } = await requireRecruiter();
+  const jobId = clean(formData.get("job_id"));
+  if (!jobId) return;
+
+  const { error } = await supabase.from("job_posts").update({
+    title: clean(formData.get("public_title")),
+    department: clean(formData.get("department")),
+    location: clean(formData.get("location")),
+    workplace: clean(formData.get("workplace")),
+    employment_type: clean(formData.get("employment_type")),
+    compensation: clean(formData.get("compensation")),
+    short_summary: clean(formData.get("short_summary")),
+    description: clean(formData.get("description")),
+    responsibilities: clean(formData.get("responsibilities")),
+    requirements: clean(formData.get("requirements")),
+    updated_at: new Date().toISOString()
+  }).eq("job_id", jobId);
+
+  if (error) throw error;
+
+  revalidatePath("/");
+  revalidatePath("/admin/jobs");
+  revalidatePath(`/admin/jobs/${jobId}`);
+}
+
+export async function setPublicPostingState(formData) {
+  const { supabase } = await requireRecruiter();
+  const jobId = clean(formData.get("job_id"));
+  const intent = clean(formData.get("intent"));
+  if (!jobId || !["publish","unpublish","close"].includes(intent)) return;
+
+  const { data: post, error: postError } = await supabase
+    .from("job_posts")
+    .select("title, location, short_summary, description, published, published_at")
+    .eq("job_id", jobId)
+    .single();
+
+  if (postError) throw postError;
+
+  if (intent === "publish") {
+    const missing = [];
+    if (!post.title) missing.push("title");
+    if (!post.location) missing.push("location");
+    if (!post.short_summary) missing.push("summary");
+    if (!post.description) missing.push("description");
+
+    if (missing.length) {
+      redirect(`/admin/jobs/${jobId}?publish_error=${encodeURIComponent("Complete before publishing: " + missing.join(", "))}`);
+    }
+
+    const now = new Date().toISOString();
+
+    const [{ error: jobError }, { error: publishError }] = await Promise.all([
+      supabase.from("jobs").update({ status: "published", updated_at: now }).eq("id", jobId),
+      supabase.from("job_posts").update({
+        published: true,
+        published_at: post.published_at || now,
+        updated_at: now
+      }).eq("job_id", jobId)
+    ]);
+
+    if (jobError) throw jobError;
+    if (publishError) throw publishError;
+  }
+
+  if (intent === "unpublish") {
+    const now = new Date().toISOString();
+    const [{ error: jobError }, { error: publishError }] = await Promise.all([
+      supabase.from("jobs").update({ status: "paused", updated_at: now }).eq("id", jobId),
+      supabase.from("job_posts").update({ published: false, updated_at: now }).eq("job_id", jobId)
+    ]);
+    if (jobError) throw jobError;
+    if (publishError) throw publishError;
+  }
+
+  if (intent === "close") {
+    const now = new Date().toISOString();
+    const [{ error: jobError }, { error: publishError }] = await Promise.all([
+      supabase.from("jobs").update({ status: "closed", updated_at: now }).eq("id", jobId),
+      supabase.from("job_posts").update({ published: false, updated_at: now }).eq("job_id", jobId)
+    ]);
+    if (jobError) throw jobError;
+    if (publishError) throw publishError;
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/jobs");
+  revalidatePath(`/admin/jobs/${jobId}`);
+}

@@ -368,3 +368,9 @@ button,select,textarea{font:inherit}
   .candidate-submit-row button{width:100%}
   .application-success{grid-template-columns:1fr}
 }
+
+.public-footer{border-top:1px solid #d8ddd5;padding:34px 0 44px;display:flex;justify-content:space-between;gap:24px;align-items:end}
+.public-footer>div{display:grid;gap:5px}
+.public-footer>div span{font-size:12px;color:#718079}
+.public-footer>a{font-size:11px;color:#7b8781}
+@media(max-width:650px){.public-footer{align-items:flex-start;flex-direction:column}}

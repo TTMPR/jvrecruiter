@@ -51,7 +51,8 @@ export default async function CandidatePortalPage({ params }) {
       candidate:candidates(id,full_name,email,phone,linkedin_url,location,current_title,current_company,latest_resume_name,updated_at),
       job:jobs(id,title,status,department),
       interviews(id,stage_name,scheduled_at,status,duration_minutes,meeting_url,updated_at),
-      resume:candidate_documents(id,file_name,label,created_at)
+      resume:candidate_documents(id,file_name,label,created_at),
+      updates:candidate_portal_updates(id,update_type,title,body,created_at)
     `)
     .limit(1)
     .maybeSingle();
@@ -107,6 +108,33 @@ export default async function CandidatePortalPage({ params }) {
                   </article>
                 );
               })}
+            </div>
+          </section>
+
+          <section className="portal-card">
+            <div className="portal-section-heading">
+              <div>
+                <p className="eyebrow">Updates</p>
+                <h2>From your recruiter</h2>
+              </div>
+            </div>
+
+            <div className="portal-update-feed">
+              {(application.updates || [])
+                .sort((a,b) => new Date(b.created_at) - new Date(a.created_at))
+                .map((update) => (
+                  <article key={update.id}>
+                    <span>{update.update_type.replaceAll("_"," ")}</span>
+                    <div>
+                      <strong>{update.title}</strong>
+                      {update.body ? <p>{update.body}</p> : null}
+                      <time>{formatDate(update.created_at)}</time>
+                    </div>
+                  </article>
+                ))}
+              {!application.updates?.length ? (
+                <p className="muted">No new recruiter updates yet. Your current application status is shown above.</p>
+              ) : null}
             </div>
           </section>
 

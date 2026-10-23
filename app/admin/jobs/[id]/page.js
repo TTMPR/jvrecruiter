@@ -5,9 +5,11 @@ import AdminShell from "../../admin-shell";
 import RichTextEditor from "../../rich-text-editor";
 import PipelineBoard from "../../pipeline-board";
 import {
+  createTask,
   setPublicPostingState,
   updateJob,
-  updatePublicPosting
+  updatePublicPosting,
+  updateTaskStatus
 } from "../../actions";
 
 const MAIN_STAGES = ["Applied","Prescreen","Submitted","Client Sub","Interviewing","Offer","Placed"];
@@ -17,12 +19,17 @@ export default async function JobDetailPage({ params, searchParams }) {
   const query = await searchParams;
   const { recruiter, supabase } = await requireRecruiter();
 
-  const [{ data: job }, { data: applications }] = await Promise.all([
+  const [{ data: job }, { data: applications }, { data: tasks }] = await Promise.all([
     supabase.from("jobs").select("*, job_posts(*)").eq("id", id).maybeSingle(),
     supabase.from("applications")
       .select("id, stage, interview_stage, applied_at, candidate:candidates(id, full_name, current_title, current_company, location)")
       .eq("job_id", id)
-      .order("updated_at", { ascending: false })
+      .order("updated_at", { ascending: false }),
+    supabase.from("tasks")
+      .select("id,title,task_type,priority,status,due_at,candidate:candidates(id,full_name)")
+      .eq("job_id", id)
+      .order("status", { ascending:true })
+      .order("due_at", { ascending:true, nullsFirst:false })
   ]);
 
   if (!job) notFound();
@@ -165,6 +172,57 @@ export default async function JobDetailPage({ params, searchParams }) {
           </div>
         </section>
       </div>
+
+      <section className="panel top-gap">
+        <div className="section-heading">
+          <div>
+            <h2>Role follow-ups</h2>
+            <p className="muted">Track client feedback and actions tied to this search.</p>
+          </div>
+        </div>
+
+        <form action={createTask} className="task-create-form compact-task-form">
+          <input type="hidden" name="job_id" value={job.id} />
+          <label>Type
+            <select name="task_type" defaultValue="follow_up_client">
+              <option value="follow_up_client">Follow up client</option>
+              <option value="check_feedback">Check feedback</option>
+              <option value="send_submission">Send submission</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>Task<input name="title" required placeholder="Check client feedback" /></label>
+          <label>Priority
+            <select name="priority" defaultValue="medium">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <label>Due<input name="due_at" type="datetime-local" /></label>
+          <button type="submit">Add task</button>
+        </form>
+
+        <div className="task-list compact-task-list">
+          {(tasks || []).map((task) => (
+            <article className="task-row" key={task.id}>
+              <div className="task-main">
+                <div className="task-title-line">
+                  <strong>{task.title}</strong>
+                  <span className={`priority-pill ${task.priority}`}>{task.priority}</span>
+                </div>
+                <span>{[task.candidate?.full_name, task.task_type.replaceAll("_", " "), task.due_at ? new Date(task.due_at).toLocaleString("en-US", { timeZone: "America/Puerto_Rico", dateStyle: "short", timeStyle: "short" }) : null].filter(Boolean).join(" · ")}</span>
+              </div>
+              <form action={updateTaskStatus}>
+                <input type="hidden" name="task_id" value={task.id} />
+                <input type="hidden" name="status" value={task.status === "done" ? "open" : "done"} />
+                <button type="submit" className={task.status === "done" ? "secondary-button" : ""}>{task.status === "done" ? "Reopen" : "Done"}</button>
+              </form>
+            </article>
+          ))}
+          {!tasks?.length ? <p className="muted">No role follow-ups yet.</p> : null}
+        </div>
+      </section>
 
       <section className="panel top-gap">
         <div className="section-heading">

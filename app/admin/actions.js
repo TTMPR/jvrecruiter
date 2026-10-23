@@ -293,7 +293,7 @@ export async function updateJob(formData) {
     .map((x) => x.trim())
     .filter(Boolean);
 
-  await supabase.from("jobs").update({
+  const { error } = await supabase.from("jobs").update({
     title: clean(formData.get("title")),
     department: clean(formData.get("department")),
     client_name: clean(formData.get("client_name")),
@@ -304,25 +304,11 @@ export async function updateJob(formData) {
     updated_at: new Date().toISOString()
   }).eq("id", jobId);
 
-  await supabase.from("job_posts").update({
-    title: clean(formData.get("title")),
-    department: clean(formData.get("department")),
-    location: clean(formData.get("location")),
-    workplace: clean(formData.get("workplace")),
-    employment_type: clean(formData.get("employment_type")),
-    compensation: clean(formData.get("compensation")),
-    short_summary: clean(formData.get("short_summary")),
-    description: clean(formData.get("description")),
-    responsibilities: clean(formData.get("responsibilities")),
-    requirements: clean(formData.get("requirements")),
-    updated_at: new Date().toISOString()
-  }).eq("job_id", jobId);
+  if (error) throw error;
 
-  revalidatePath("/");
   revalidatePath("/admin/jobs");
   revalidatePath(`/admin/jobs/${jobId}`);
 }
-
 
 export async function updatePublicPosting(formData) {
   const { supabase } = await requireRecruiter();

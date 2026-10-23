@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "../../../lib/supabase/server";
 import PublicIntakeForm from "../../public-intake-form";
+import RichText from "../../rich-text";
 
 export const dynamic = "force-dynamic";
 
@@ -29,11 +30,11 @@ export default async function JobPage({ params }) {
         <p className="eyebrow">{[job.department, job.workplace].filter(Boolean).join(" · ") || "Opportunity"}</p>
         <h1>{job.title}</h1>
         <p className="job-meta">{[job.location, job.employment_type, job.compensation].filter(Boolean).join(" · ")}</p>
-        {job.short_summary ? <p className="lede">{job.short_summary}</p> : null}
+        {job.short_summary ? <RichText value={job.short_summary} className="lede" /> : null}
 
-        {job.description ? <section><h2>About the role</h2><p className="preline">{job.description}</p></section> : null}
-        {job.responsibilities ? <section><h2>What you’ll do</h2><p className="preline">{job.responsibilities}</p></section> : null}
-        {job.requirements ? <section><h2>What we’re looking for</h2><p className="preline">{job.requirements}</p></section> : null}
+        {job.description ? <section><h2>About the role</h2><RichText value={job.description} /></section> : null}
+        {job.responsibilities ? <section><h2>What you’ll do</h2><RichText value={job.responsibilities} /></section> : null}
+        {job.requirements ? <section><h2>What we’re looking for</h2><RichText value={job.requirements} /></section> : null}
 
         <section className="apply-section">
           <p className="eyebrow">Apply</p>

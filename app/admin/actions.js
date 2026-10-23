@@ -560,3 +560,88 @@ export async function updateInterview(formData) {
   revalidatePath(`/admin/candidates/${application.candidate_id}`);
   revalidatePath(`/admin/jobs/${application.job_id}`);
 }
+
+
+export async function createTask(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const title = clean(formData.get("title"));
+  if (!title) return;
+
+  const candidateId = clean(formData.get("candidate_id"));
+  const jobId = clean(formData.get("job_id"));
+  const taskType = clean(formData.get("task_type")) || "other";
+  const priority = clean(formData.get("priority")) || "medium";
+  const dueAt = clean(formData.get("due_at"));
+
+  const allowedTypes = ["follow_up_candidate","follow_up_client","schedule_interview","send_submission","check_feedback","other"];
+  if (!allowedTypes.includes(taskType) || !["low","medium","high"].includes(priority)) return;
+
+  const { data: task, error } = await supabase
+    .from("tasks")
+    .insert({
+      owner_id: recruiter.id,
+      candidate_id: candidateId,
+      job_id: jobId,
+      task_type: taskType,
+      title,
+      notes: clean(formData.get("notes")),
+      priority,
+      status: "open",
+      due_at: dueAt ? new Date(dueAt).toISOString() : null
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+
+  if (candidateId) {
+    await supabase.from("activities").insert({
+      candidate_id: candidateId,
+      actor_id: recruiter.id,
+      activity_type: "task_created",
+      details: { task_id: task.id, title, task_type: taskType, due_at: dueAt || null }
+    });
+    revalidatePath(`/admin/candidates/${candidateId}`);
+  }
+
+  if (jobId) revalidatePath(`/admin/jobs/${jobId}`);
+  revalidatePath("/admin/tasks");
+  revalidatePath("/admin/dashboard");
+}
+
+export async function updateTaskStatus(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const taskId = clean(formData.get("task_id"));
+  const status = clean(formData.get("status"));
+  if (!taskId || !["open","done"].includes(status)) return;
+
+  const { data: before, error: fetchError } = await supabase
+    .from("tasks")
+    .select("candidate_id,job_id,title,status")
+    .eq("id", taskId)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  const { error } = await supabase.from("tasks").update({
+    status,
+    completed_at: status === "done" ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString()
+  }).eq("id", taskId);
+
+  if (error) throw error;
+
+  if (before.candidate_id) {
+    await supabase.from("activities").insert({
+      candidate_id: before.candidate_id,
+      actor_id: recruiter.id,
+      activity_type: status === "done" ? "task_completed" : "task_reopened",
+      details: { task_id: taskId, title: before.title }
+    });
+    revalidatePath(`/admin/candidates/${before.candidate_id}`);
+  }
+
+  if (before.job_id) revalidatePath(`/admin/jobs/${before.job_id}`);
+  revalidatePath("/admin/tasks");
+  revalidatePath("/admin/dashboard");
+}

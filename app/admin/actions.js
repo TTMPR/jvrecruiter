@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { createHash, randomBytes } from "node:crypto";
 import { requireRecruiter } from "../../lib/auth";
 import { createGoogleCalendarEvent, sendGoogleEmail } from "../../lib/google";
 
@@ -1366,4 +1367,78 @@ export async function assignApplicationResume(formData) {
 
   revalidatePath(`/admin/candidates/${application.candidate_id}`);
   revalidatePath(`/admin/jobs/${application.job_id}`);
+}
+
+
+export async function createCandidatePortalAccess(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const applicationId = clean(formData.get("application_id"));
+  if (!applicationId) return;
+
+  const { data: application, error } = await supabase
+    .from("applications")
+    .select("id,candidate_id,job_id")
+    .eq("id", applicationId)
+    .single();
+
+  if (error) throw error;
+
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const expiresAt = new Date(Date.now() + 90 * 86400000).toISOString();
+
+  const { error: accessError } = await supabase
+    .from("candidate_portal_access")
+    .upsert({
+      application_id: applicationId,
+      candidate_id: application.candidate_id,
+      token_hash: tokenHash,
+      expires_at: expiresAt,
+      revoked_at: null,
+      created_by: recruiter.id
+    }, { onConflict: "application_id" });
+
+  if (accessError) throw accessError;
+
+  await supabase.from("activities").insert({
+    candidate_id: application.candidate_id,
+    application_id: applicationId,
+    actor_id: recruiter.id,
+    activity_type: "candidate_portal_link_created",
+    details: { expires_at: expiresAt }
+  });
+
+  revalidatePath(`/admin/candidates/${application.candidate_id}`);
+  redirect(`/admin/candidates/${application.candidate_id}?portal_token=${encodeURIComponent(token)}&portal_app=${applicationId}`);
+}
+
+export async function revokeCandidatePortalAccess(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const applicationId = clean(formData.get("application_id"));
+  if (!applicationId) return;
+
+  const { data: application, error } = await supabase
+    .from("applications")
+    .select("candidate_id,job_id")
+    .eq("id", applicationId)
+    .single();
+
+  if (error) throw error;
+
+  const { error: revokeError } = await supabase
+    .from("candidate_portal_access")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("application_id", applicationId);
+
+  if (revokeError) throw revokeError;
+
+  await supabase.from("activities").insert({
+    candidate_id: application.candidate_id,
+    application_id: applicationId,
+    actor_id: recruiter.id,
+    activity_type: "candidate_portal_access_revoked",
+    details: {}
+  });
+
+  revalidatePath(`/admin/candidates/${application.candidate_id}`);
 }

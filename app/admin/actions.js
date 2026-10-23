@@ -432,3 +432,115 @@ export async function updateCandidate(formData) {
   revalidatePath("/admin/candidates");
   revalidatePath(`/admin/candidates/${candidateId}`);
 }
+
+
+export async function createInterview(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const applicationId = clean(formData.get("application_id"));
+  const stageName = clean(formData.get("stage_name"));
+  const scheduledAt = clean(formData.get("scheduled_at"));
+  if (!applicationId || !stageName) return;
+
+  const { data: application, error: appError } = await supabase
+    .from("applications")
+    .select("candidate_id, job_id")
+    .eq("id", applicationId)
+    .single();
+
+  if (appError) throw appError;
+
+  const { data: interview, error } = await supabase
+    .from("interviews")
+    .insert({
+      application_id: applicationId,
+      stage_name: stageName,
+      scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+      status: "scheduled",
+      notes: clean(formData.get("notes")),
+      created_by: recruiter.id
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+
+  await supabase.from("applications").update({
+    stage: "Interviewing",
+    interview_stage: stageName,
+    updated_at: new Date().toISOString()
+  }).eq("id", applicationId);
+
+  await supabase.from("activities").insert({
+    candidate_id: application.candidate_id,
+    application_id: applicationId,
+    actor_id: recruiter.id,
+    activity_type: "interview_scheduled",
+    details: {
+      interview_id: interview.id,
+      stage_name: stageName,
+      scheduled_at: scheduledAt || null
+    }
+  });
+
+  revalidatePath(`/admin/candidates/${application.candidate_id}`);
+  revalidatePath(`/admin/jobs/${application.job_id}`);
+}
+
+export async function updateInterview(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const interviewId = clean(formData.get("interview_id"));
+  const status = clean(formData.get("status"));
+  const scheduledAt = clean(formData.get("scheduled_at"));
+  const stageName = clean(formData.get("stage_name"));
+  if (!interviewId || !stageName || !["scheduled","completed","cancelled","no_show"].includes(status)) return;
+
+  const { data: interview, error: fetchError } = await supabase
+    .from("interviews")
+    .select("application_id")
+    .eq("id", interviewId)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  const { data: application, error: appError } = await supabase
+    .from("applications")
+    .select("candidate_id, job_id")
+    .eq("id", interview.application_id)
+    .single();
+
+  if (appError) throw appError;
+
+  const { error } = await supabase.from("interviews").update({
+    stage_name: stageName,
+    scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+    status,
+    notes: clean(formData.get("notes")),
+    updated_at: new Date().toISOString()
+  }).eq("id", interviewId);
+
+  if (error) throw error;
+
+  if (status !== "cancelled") {
+    await supabase.from("applications").update({
+      stage: "Interviewing",
+      interview_stage: stageName,
+      updated_at: new Date().toISOString()
+    }).eq("id", interview.application_id);
+  }
+
+  await supabase.from("activities").insert({
+    candidate_id: application.candidate_id,
+    application_id: interview.application_id,
+    actor_id: recruiter.id,
+    activity_type: "interview_updated",
+    details: {
+      interview_id: interviewId,
+      stage_name: stageName,
+      status,
+      scheduled_at: scheduledAt || null
+    }
+  });
+
+  revalidatePath(`/admin/candidates/${application.candidate_id}`);
+  revalidatePath(`/admin/jobs/${application.job_id}`);
+}

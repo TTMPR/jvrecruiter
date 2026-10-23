@@ -116,7 +116,7 @@ export default async function JobDetailPage({ params, searchParams }) {
             <label>Public title<input name="public_title" defaultValue={post.title || job.title || ""} required /></label>
             <div className="form-grid">
               <label>Department<input name="department" defaultValue={post.department || job.department || ""} /></label>
-              <label>Location<input name="location" defaultValue={post.location || ""} placeholder="Austin, TX / Remote" /></label>
+              <label>Location <span className="required-label">Required</span><input name="location" defaultValue={post.location || ""} placeholder="Austin, TX / Remote" required /></label>
               <label>Workplace
                 <select name="workplace" defaultValue={post.workplace || ""}>
                   <option value="">Select</option>
@@ -177,7 +177,7 @@ export default async function JobDetailPage({ params, searchParams }) {
               <p>
                 {post.published
                   ? "Candidates can see it under Open Roles and submit an application."
-                  : "Save the posting first, then publish when it is ready."}
+                  : "Complete the required fields below, then publish. Save & Publish will save your latest edits automatically."}
               </p>
             </div>
 
@@ -210,8 +210,7 @@ export default async function JobDetailPage({ params, searchParams }) {
                   form="public-posting-form"
                   name="intent"
                   value="publish"
-                  disabled={false}
-                >
+                 >
                   Save & Publish
                 </button>
               )}

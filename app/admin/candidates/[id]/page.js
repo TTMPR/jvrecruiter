@@ -7,6 +7,7 @@ import { getGoogleConnection } from "../../../../lib/google";
 import CopySubmissionButton from "../../copy-submission-button";
 import {
   addCandidateNote,
+  addClientFeedback,
   attachCandidateToJob,
   createInterview,
   createInterviewCalendarEvent,
@@ -79,7 +80,7 @@ export default async function CandidateDetailPage({ params }) {
 
   const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }, { data: communications }] = await Promise.all([
     supabase.from("applications")
-      .select("id, stage, interview_stage, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at), submission:candidate_submissions(id,status,recruiter_summary,key_strengths,compensation,availability,work_authorization,visa_sponsorship,relocation,location_preference,notice_period,client_notes,submitted_at,updated_at)")
+      .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at), submission:candidate_submissions(id,status,recruiter_summary,key_strengths,compensation,availability,work_authorization,visa_sponsorship,relocation,location_preference,notice_period,client_notes,submitted_at,updated_at), client_feedback(id,feedback_type,feedback,reason,next_step,received_at)")
       .eq("candidate_id", id)
       .order("updated_at", { ascending:false }),
     supabase.from("candidate_notes")
@@ -375,6 +376,55 @@ export default async function CandidateDetailPage({ params }) {
                     ) : null}
                   </div>
                 </form>
+              </div>
+
+              <div className="feedback-section">
+                <div className="section-heading compact-heading">
+                  <div>
+                    <strong>Client feedback</strong>
+                    <p className="muted">Track advance, hold or rejection feedback for this process.</p>
+                  </div>
+                  {app.disposition ? <span className={`disposition-pill ${app.disposition}`}>{app.disposition}</span> : null}
+                </div>
+
+                <form action={addClientFeedback} className="feedback-form">
+                  <input type="hidden" name="application_id" value={app.id} />
+                  <label>Outcome
+                    <select name="feedback_type" defaultValue="general">
+                      <option value="general">General feedback</option>
+                      <option value="advance">Advance</option>
+                      <option value="hold">Hold</option>
+                      <option value="reject">Reject</option>
+                    </select>
+                  </label>
+                  <label>Reason
+                    <input name="reason" placeholder="Technical fit, comp, experience, timing..." />
+                  </label>
+                  <label>Next step
+                    <input name="next_step" placeholder="HM interview, panel, wait for feedback..." />
+                  </label>
+                  <label className="full-span">Feedback
+                    <textarea name="feedback" rows="3" placeholder="Client comments..." />
+                  </label>
+                  <button type="submit">Add feedback</button>
+                </form>
+
+                <div className="feedback-list">
+                  {(app.client_feedback || [])
+                    .sort((a,b) => new Date(b.received_at) - new Date(a.received_at))
+                    .map((item) => (
+                      <article className="feedback-card" key={item.id}>
+                        <div>
+                          <span className={`feedback-type ${item.feedback_type}`}>{item.feedback_type}</span>
+                          <strong>{item.reason || item.next_step || "Client feedback"}</strong>
+                        </div>
+                        {item.feedback ? <p>{item.feedback}</p> : null}
+                        {item.next_step ? <span>Next: {item.next_step}</span> : null}
+                        <time>{new Date(item.received_at).toLocaleString("en-US", { timeZone: "America/Puerto_Rico", dateStyle: "short", timeStyle: "short" })}</time>
+                      </article>
+                    ))}
+                  {!app.client_feedback?.length ? <p className="muted">No client feedback yet.</p> : null}
+                </div>
               </div>
 
               <div className="interview-section">

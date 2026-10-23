@@ -798,3 +798,77 @@ export async function createInterviewCalendarEvent(formData) {
   revalidatePath(`/admin/jobs/${interview.application.job.id}`);
   revalidatePath("/admin/dashboard");
 }
+
+
+export async function saveCandidateSubmission(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const applicationId = clean(formData.get("application_id"));
+  const intent = clean(formData.get("intent")) || "draft";
+  if (!applicationId || !["draft","ready","submitted"].includes(intent)) return;
+
+  const { data: application, error: appError } = await supabase
+    .from("applications")
+    .select("id,candidate_id,job_id")
+    .eq("id", applicationId)
+    .single();
+
+  if (appError) throw appError;
+
+  const now = new Date().toISOString();
+
+  const payload = {
+    application_id: applicationId,
+    recruiter_id: recruiter.id,
+    status: intent,
+    recruiter_summary: clean(formData.get("recruiter_summary")),
+    key_strengths: clean(formData.get("key_strengths")),
+    compensation: clean(formData.get("compensation")),
+    availability: clean(formData.get("availability")),
+    work_authorization: clean(formData.get("work_authorization")),
+    visa_sponsorship: clean(formData.get("visa_sponsorship")),
+    relocation: clean(formData.get("relocation")),
+    location_preference: clean(formData.get("location_preference")),
+    notice_period: clean(formData.get("notice_period")),
+    client_notes: clean(formData.get("client_notes")),
+    submitted_at: intent === "submitted" ? now : null,
+    updated_at: now
+  };
+
+  const { data: submission, error } = await supabase
+    .from("candidate_submissions")
+    .upsert(payload, { onConflict: "application_id" })
+    .select("id,status")
+    .single();
+
+  if (error) throw error;
+
+  if (intent === "submitted") {
+    const { error: stageError } = await supabase.from("applications").update({
+      stage: "Client Sub",
+      interview_stage: null,
+      updated_at: now
+    }).eq("id", applicationId);
+
+    if (stageError) throw stageError;
+  }
+
+  await supabase.from("activities").insert({
+    candidate_id: application.candidate_id,
+    application_id: applicationId,
+    actor_id: recruiter.id,
+    activity_type:
+      intent === "submitted"
+        ? "candidate_submitted"
+        : intent === "ready"
+          ? "submission_ready"
+          : "submission_draft_saved",
+    details: {
+      submission_id: submission.id,
+      status: intent
+    }
+  });
+
+  revalidatePath(`/admin/candidates/${application.candidate_id}`);
+  revalidatePath(`/admin/jobs/${application.job_id}`);
+  revalidatePath("/admin/dashboard");
+}

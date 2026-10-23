@@ -464,7 +464,9 @@ export async function createInterview(formData) {
   const applicationId = clean(formData.get("application_id"));
   const stageName = clean(formData.get("stage_name"));
   const scheduledAt = clean(formData.get("scheduled_at"));
-  if (!applicationId || !stageName) return;
+  const durationMinutes = Number(formData.get("duration_minutes") || 30);
+  const meetingUrl = clean(formData.get("meeting_url"));
+  if (!applicationId || !stageName || !Number.isFinite(durationMinutes) || durationMinutes < 15 || durationMinutes > 480) return;
 
   const { data: application, error: appError } = await supabase
     .from("applications")
@@ -482,6 +484,8 @@ export async function createInterview(formData) {
       scheduled_at: localDateTimeToIso(scheduledAt),
       status: "scheduled",
       notes: clean(formData.get("notes")),
+      duration_minutes: durationMinutes,
+      meeting_url: meetingUrl,
       created_by: recruiter.id
     })
     .select("id")
@@ -503,7 +507,9 @@ export async function createInterview(formData) {
     details: {
       interview_id: interview.id,
       stage_name: stageName,
-      scheduled_at: scheduledAt || null
+      scheduled_at: scheduledAt || null,
+      duration_minutes: durationMinutes,
+      meeting_url: meetingUrl
     }
   });
 
@@ -517,7 +523,9 @@ export async function updateInterview(formData) {
   const status = clean(formData.get("status"));
   const scheduledAt = clean(formData.get("scheduled_at"));
   const stageName = clean(formData.get("stage_name"));
-  if (!interviewId || !stageName || !["scheduled","completed","cancelled","no_show"].includes(status)) return;
+  const durationMinutes = Number(formData.get("duration_minutes") || 30);
+  const meetingUrl = clean(formData.get("meeting_url"));
+  if (!interviewId || !stageName || !Number.isFinite(durationMinutes) || durationMinutes < 15 || durationMinutes > 480 || !["scheduled","completed","cancelled","no_show"].includes(status)) return;
 
   const { data: interview, error: fetchError } = await supabase
     .from("interviews")
@@ -540,6 +548,8 @@ export async function updateInterview(formData) {
     scheduled_at: localDateTimeToIso(scheduledAt),
     status,
     notes: clean(formData.get("notes")),
+    duration_minutes: durationMinutes,
+    meeting_url: meetingUrl,
     updated_at: new Date().toISOString()
   }).eq("id", interviewId);
 

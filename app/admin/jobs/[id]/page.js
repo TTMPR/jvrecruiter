@@ -22,7 +22,7 @@ export default async function JobDetailPage({ params, searchParams }) {
   const [{ data: job }, { data: applications }, { data: tasks }] = await Promise.all([
     supabase.from("jobs").select("*, job_posts(*)").eq("id", id).maybeSingle(),
     supabase.from("applications")
-      .select("id, stage, interview_stage, applied_at, candidate:candidates(id, full_name, current_title, current_company, location), submission:candidate_submissions(id,status,compensation,availability,work_authorization,visa_sponsorship,relocation,submitted_at,updated_at)")
+      .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, applied_at, candidate:candidates(id, full_name, current_title, current_company, location), submission:candidate_submissions(id,status,compensation,availability,work_authorization,visa_sponsorship,relocation,submitted_at,updated_at), client_feedback(id,feedback_type,reason,received_at)")
       .eq("job_id", id)
       .order("updated_at", { ascending: false }),
     supabase.from("tasks")
@@ -37,6 +37,23 @@ export default async function JobDetailPage({ params, searchParams }) {
   const post = job.job_posts?.[0] || {};
   const interviewStages = Array.isArray(job.interview_stages) ? job.interview_stages : [];
   const publishError = query?.publish_error;
+
+  const submittedApps = (applications || []).filter((app) => app.submission?.status === "submitted");
+  const advancedCount = (applications || []).filter((app) => app.disposition === "advanced").length;
+  const holdCount = (applications || []).filter((app) => app.disposition === "hold").length;
+  const rejectedCount = (applications || []).filter((app) => app.disposition === "rejected").length;
+
+  const reasonCounts = {};
+  for (const app of applications || []) {
+    for (const feedback of app.client_feedback || []) {
+      const reason = String(feedback.reason || "").trim();
+      if (!reason) continue;
+      reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+    }
+  }
+  const topReasons = Object.entries(reasonCounts)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0,5);
 
   return (
     <AdminShell recruiter={recruiter}>
@@ -221,6 +238,33 @@ export default async function JobDetailPage({ params, searchParams }) {
             </article>
           ))}
           {!tasks?.length ? <p className="muted">No role follow-ups yet.</p> : null}
+        </div>
+      </section>
+
+      <section className="panel top-gap">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Submission analytics</p>
+            <h2>Client response</h2>
+          </div>
+        </div>
+
+        <div className="feedback-metrics">
+          <article><span>Submitted</span><strong>{submittedApps.length}</strong></article>
+          <article><span>Advanced</span><strong>{advancedCount}</strong></article>
+          <article><span>On hold</span><strong>{holdCount}</strong></article>
+          <article><span>Rejected</span><strong>{rejectedCount}</strong></article>
+          <article>
+            <span>Advance rate</span>
+            <strong>{submittedApps.length ? Math.round((advancedCount / submittedApps.length) * 100) : 0}%</strong>
+          </article>
+        </div>
+
+        <div className="top-reasons">
+          <strong>Top feedback reasons</strong>
+          {topReasons.length ? topReasons.map(([reason,count]) => (
+            <div key={reason}><span>{reason}</span><strong>{count}</strong></div>
+          )) : <p className="muted">No feedback reasons recorded yet.</p>}
         </div>
       </section>
 

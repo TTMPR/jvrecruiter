@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { copyText } from "./copy-text";
 
 export default function CopyPortalInviteButton({ candidateName, roleTitle, portalUrl }) {
   const [copied, setCopied] = useState(false);
@@ -18,14 +19,14 @@ export default function CopyPortalInviteButton({ candidateName, roleTitle, porta
   ].join("\n");
 
   async function copy() {
-    await navigator.clipboard.writeText(message);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
+    const ok = await copyText(message);
+    setCopied(ok ? true : "error");
+    window.setTimeout(() => setCopied(false), 1600);
   }
 
   return (
     <button type="button" className="secondary-button" onClick={copy}>
-      {copied ? "Invitation copied" : "Copy invitation"}
+      {copied === "error" ? "Copy failed" : copied ? "Invitation copied" : "Copy invitation"}
     </button>
   );
 }

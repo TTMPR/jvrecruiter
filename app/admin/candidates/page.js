@@ -115,7 +115,16 @@ export default async function CandidatesPage({ searchParams }) {
             <label>Current title<input name="current_title" /></label>
             <label>Current company<input name="current_company" /></label>
             <label>LinkedIn<input name="linkedin_url" type="url" /></label>
-            <label>Source<input name="source" defaultValue="recruiter" /></label>
+            <label>Source
+              <select name="source" defaultValue="recruiter">
+                <option value="recruiter">Recruiter</option>
+                <option value="sourced">Sourced</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="referral">Referral</option>
+                <option value="network">Network</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
           </div>
           <button type="submit">Add candidate</button>
         </form>

@@ -493,3 +493,7 @@ button,select,textarea{font:inherit}
 .duplicate-warning{margin-top:16px;padding:11px 12px;border:1px solid #efd1a9;background:#fff4e8;color:#87510f;border-radius:10px;font-size:12px;line-height:1.5}
 .duplicate-empty strong{display:block;margin-bottom:5px}
 @media(max-width:720px){.duplicate-compare-grid{grid-template-columns:1fr}.duplicate-card-header{flex-direction:column}.duplicate-actions button{width:100%}.duplicate-actions form{width:100%}}
+
+.pipeline-card-controls{margin-top:10px}
+.pipeline-card-controls label{display:grid;gap:4px;font-size:10px;font-weight:800;color:#718079;text-transform:uppercase;letter-spacing:.05em}
+.pipeline-card-controls select{width:100%;border:1px solid #d5dcd7;border-radius:8px;background:white;padding:7px 8px;font-size:12px;color:#102d35}

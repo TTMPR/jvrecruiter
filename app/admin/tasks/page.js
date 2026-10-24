@@ -13,15 +13,23 @@ const TYPES = [
   ["other","Other"]
 ];
 
+function puertoRicoDateKey(value) {
+  if (!value) return null;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Puerto_Rico",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date(value));
+}
+
 function dueState(value, status) {
   if (status === "done" || !value) return "";
-  const now = new Date();
-  const due = new Date(value);
-  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startTomorrow = new Date(startToday);
-  startTomorrow.setDate(startTomorrow.getDate() + 1);
-  if (due < startToday) return "overdue";
-  if (due >= startToday && due < startTomorrow) return "today";
+  const dueKey = puertoRicoDateKey(value);
+  const todayKey = puertoRicoDateKey(new Date());
+  if (!dueKey || !todayKey) return "";
+  if (dueKey < todayKey) return "overdue";
+  if (dueKey === todayKey) return "today";
   return "";
 }
 

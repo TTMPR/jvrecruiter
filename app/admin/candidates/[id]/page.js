@@ -177,7 +177,19 @@ export default async function CandidateDetailPage({ params, searchParams }) {
               <label>Current title<input name="current_title" defaultValue={candidate.current_title || ""} /></label>
               <label>Current company<input name="current_company" defaultValue={candidate.current_company || ""} /></label>
               <label>LinkedIn<input name="linkedin_url" type="url" defaultValue={candidate.linkedin_url || ""} /></label>
-              <label>Source<input name="source" defaultValue={candidate.source || ""} /></label>
+              <label>Source
+                <select name="source" defaultValue={candidate.source || "other"}>
+                  <option value="recruiter">Recruiter</option>
+                  <option value="sourced">Sourced</option>
+                  <option value="linkedin">LinkedIn</option>
+                  <option value="referral">Referral</option>
+                  <option value="network">Network</option>
+                  <option value="website_application">Website application</option>
+                  <option value="website_network">Website network</option>
+                  <option value="applied">Applied</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
             </div>
             <button type="submit">Save candidate</button>
           </form>

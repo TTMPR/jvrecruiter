@@ -469,3 +469,27 @@ button,select,textarea{font:inherit}
 .public-post-actions button:not(.secondary-button){border:0;border-radius:10px;background:#102d35;color:white;padding:10px 14px;font-weight:800;cursor:pointer}
 .publish-readiness{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:11px 12px;border:1px solid #efd1a9;background:#fff4e8;color:#87510f;border-radius:10px;font-size:12px}
 .required-label{display:inline-flex;margin-left:6px;font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.08em;color:#8a3028}
+
+.duplicate-list{display:grid;gap:16px}
+.duplicate-card{border:1px solid #dbe2dc;border-radius:16px;background:#fbfcfa;padding:18px}
+.duplicate-card-header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:16px}
+.duplicate-card-header>div{display:grid;gap:5px}
+.duplicate-score{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#718079;font-weight:800}
+.success-pill,.danger-pill{display:inline-flex;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:850}
+.success-pill{background:#e8f4ec;color:#245e3f}
+.danger-pill{background:#fdebea;color:#8a3028}
+.duplicate-compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.duplicate-profile{border:1px solid #e0e5e1;border-radius:12px;background:white;padding:14px;display:grid;gap:12px}
+.duplicate-profile>div:first-child{display:grid;gap:4px}
+.duplicate-profile>div:first-child>span{font-size:10px;color:#8a948e;text-transform:uppercase;letter-spacing:.06em}
+.duplicate-profile>div:first-child strong{font-size:17px}
+.duplicate-profile p{margin:0;color:#68756f;font-size:12px}
+.duplicate-profile dl{display:grid;gap:7px;margin:0}
+.duplicate-profile dl>div{display:grid;grid-template-columns:70px 1fr;gap:10px;font-size:12px}
+.duplicate-profile dt{color:#8a948e}
+.duplicate-profile dd{margin:0;color:#42524b;overflow-wrap:anywhere}
+.duplicate-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.duplicate-actions form{margin:0}
+.duplicate-warning{margin-top:16px;padding:11px 12px;border:1px solid #efd1a9;background:#fff4e8;color:#87510f;border-radius:10px;font-size:12px;line-height:1.5}
+.duplicate-empty strong{display:block;margin-bottom:5px}
+@media(max-width:720px){.duplicate-compare-grid{grid-template-columns:1fr}.duplicate-card-header{flex-direction:column}.duplicate-actions button{width:100%}.duplicate-actions form{width:100%}}

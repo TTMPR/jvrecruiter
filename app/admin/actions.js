@@ -179,7 +179,7 @@ export async function processIntake(formData) {
     if (insertError) throw insertError;
     candidate = data;
   } else {
-    await supabase.from("candidates").update({
+    const { error: candidateUpdateError } = await supabase.from("candidates").update({
       phone: intake.phone || undefined,
       linkedin_url: intake.linkedin_url || undefined,
       location: intake.location || undefined,
@@ -190,6 +190,8 @@ export async function processIntake(formData) {
       latest_resume_mime_type: intake.resume_mime_type || undefined,
       latest_resume_uploaded_at: intake.resume_path ? new Date().toISOString() : undefined
     }).eq("id", candidate.id);
+
+    if (candidateUpdateError) throw candidateUpdateError;
   }
 
   let documentId = null;
@@ -221,10 +223,12 @@ export async function processIntake(formData) {
       if (documentError) throw documentError;
       documentId = document.id;
 
-      await supabase.from("candidate_documents")
+      const { error: primaryError } = await supabase.from("candidate_documents")
         .update({ is_primary: false })
         .eq("candidate_id", candidate.id)
         .neq("id", document.id);
+
+      if (primaryError) throw primaryError;
     }
   }
 
@@ -252,10 +256,12 @@ export async function processIntake(formData) {
     details: { source: "website", intake_id: intake.id }
   });
 
-  await supabase.from("public_intake").update({
+  const { error: intakeUpdateError } = await supabase.from("public_intake").update({
     status: "processed",
     processed_at: new Date().toISOString()
   }).eq("id", intake.id);
+
+  if (intakeUpdateError) throw intakeUpdateError;
 
   revalidatePath("/admin/candidates");
   revalidatePath("/admin/dashboard");
@@ -271,11 +277,13 @@ export async function updateApplicationStage(formData) {
 
   const { data: before } = await supabase.from("applications").select("candidate_id, job_id, stage").eq("id", applicationId).single();
 
-  await supabase.from("applications").update({
+  const { error: updateError } = await supabase.from("applications").update({
     stage,
     interview_stage: stage === "Interviewing" ? interviewStage : null,
     updated_at: new Date().toISOString()
   }).eq("id", applicationId);
+
+  if (updateError) throw updateError;
 
   if (before) {
     await supabase.from("activities").insert({
@@ -318,13 +326,15 @@ export async function attachCandidateToJob(formData) {
   const jobId = clean(formData.get("job_id"));
   if (!candidateId || !jobId) return;
 
-  await supabase.from("applications").upsert({
+  const { error } = await supabase.from("applications").upsert({
     candidate_id: candidateId,
     job_id: jobId,
     stage: "Applied",
     source: "recruiter",
     updated_at: new Date().toISOString()
   }, { onConflict: "candidate_id,job_id" });
+
+  if (error) throw error;
 
   revalidatePath(`/admin/candidates/${candidateId}`);
   revalidatePath(`/admin/jobs/${jobId}`);
@@ -575,11 +585,13 @@ export async function createInterview(formData) {
 
   if (error) throw error;
 
-  await supabase.from("applications").update({
+  const { error: stageError } = await supabase.from("applications").update({
     stage: "Interviewing",
     interview_stage: stageName,
     updated_at: new Date().toISOString()
   }).eq("id", applicationId);
+
+  if (stageError) throw stageError;
 
   await supabase.from("activities").insert({
     candidate_id: application.candidate_id,
@@ -638,11 +650,13 @@ export async function updateInterview(formData) {
   if (error) throw error;
 
   if (status !== "cancelled") {
-    await supabase.from("applications").update({
+    const { error: stageError } = await supabase.from("applications").update({
       stage: "Interviewing",
       interview_stage: stageName,
       updated_at: new Date().toISOString()
     }).eq("id", interview.application_id);
+
+    if (stageError) throw stageError;
   }
 
   await supabase.from("activities").insert({

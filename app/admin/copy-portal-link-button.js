@@ -1,19 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { copyText } from "./copy-text";
 
 export default function CopyPortalLinkButton({ url }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
+    const ok = await copyText(url);
+    setCopied(ok ? true : "error");
+    window.setTimeout(() => setCopied(false), 1600);
   }
 
   return (
     <button type="button" className="secondary-button" onClick={copy}>
-      {copied ? "Copied" : "Copy portal link"}
+      {copied === "error" ? "Copy failed" : copied ? "Copied" : "Copy portal link"}
     </button>
   );
 }

@@ -94,6 +94,19 @@ export default function PipelineBoard({ applications = [], interviewStages = [] 
                   <span>{app.candidate.location || ""}</span>
                 </Link>
 
+                <div className="pipeline-card-controls">
+                  <label>
+                    Move to
+                    <select
+                      value={app.stage}
+                      onChange={(event) => move(app.id, event.target.value)}
+                      disabled={isPending}
+                    >
+                      {STAGES.map((option) => <option value={option} key={option}>{option}</option>)}
+                    </select>
+                  </label>
+                </div>
+
                 {stage === "Interviewing" && interviewStages.length ? (
                   <form action={updateApplicationStage} className="stage-form">
                     <input type="hidden" name="application_id" value={app.id} />

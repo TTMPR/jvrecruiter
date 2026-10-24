@@ -61,6 +61,7 @@ export default async function CandidatesPage({ searchParams }) {
           <h1>Talent network</h1>
           <p className="muted">{filtered.length} candidate{filtered.length === 1 ? "" : "s"} shown</p>
         </div>
+        <Link className="secondary-button" href="/admin/duplicates">Review duplicates</Link>
       </header>
 
       <section className="panel">

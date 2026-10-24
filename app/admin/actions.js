@@ -1553,3 +1553,26 @@ export async function hideCandidatePortalUpdate(formData) {
 
   revalidatePath(`/admin/candidates/${update.application.candidate_id}`);
 }
+
+
+export async function mergeCandidateRecords(formData) {
+  const { supabase } = await requireRecruiter();
+  const primaryCandidateId = clean(formData.get("primary_candidate_id"));
+  const duplicateCandidateId = clean(formData.get("duplicate_candidate_id"));
+
+  if (!primaryCandidateId || !duplicateCandidateId || primaryCandidateId === duplicateCandidateId) return;
+
+  const { data, error } = await supabase.rpc("merge_candidates", {
+    primary_candidate_id: primaryCandidateId,
+    duplicate_candidate_id: duplicateCandidateId
+  });
+
+  if (error) {
+    redirect(`/admin/duplicates?merge_error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/admin/candidates");
+  revalidatePath("/admin/duplicates");
+  revalidatePath(`/admin/candidates/${data}`);
+  redirect(`/admin/candidates/${data}?merged=1`);
+}

@@ -7,20 +7,29 @@ const STAGES = ["Applied","Prescreen","Submitted","Client Sub","Interviewing","O
 
 export default async function CandidatesPage({ searchParams }) {
   const params = await searchParams;
-  const q = String(params?.q || "").trim().toLowerCase();
+  const q = String(params?.q || "").trim();
   const role = String(params?.role || "");
   const stage = String(params?.stage || "");
   const source = String(params?.source || "");
-  const location = String(params?.location || "").trim().toLowerCase();
+  const location = String(params?.location || "").trim();
   const sort = String(params?.sort || "recent");
+  const page = Math.max(1, Number(params?.page || 1) || 1);
+  const pageSize = 50;
+  const offset = (page - 1) * pageSize;
 
   const { recruiter, supabase } = await requireRecruiter();
 
-  const [{ data: candidates }, { data: intake }, { data: jobs }] = await Promise.all([
-    supabase.from("candidates")
-      .select("id, full_name, email, current_title, current_company, location, source, updated_at, applications(id, stage, job_id, job:jobs(id,title))")
-      .order("updated_at", { ascending: sort !== "oldest" })
-      .limit(500),
+  const [{ data: candidates, error: candidateError }, { data: intake }, { data: jobs }] = await Promise.all([
+    supabase.rpc("search_candidates_paginated", {
+      search_query: q || null,
+      role_filter: role || null,
+      stage_filter: stage || null,
+      source_filter: source || null,
+      location_filter: location || null,
+      sort_order: sort,
+      page_offset: offset,
+      page_limit: pageSize
+    }),
     supabase.from("public_intake")
       .select("id, submission_type, full_name, email, current_title, current_company, location, created_at, job_id")
       .eq("status", "new")
@@ -31,27 +40,34 @@ export default async function CandidatesPage({ searchParams }) {
       .order("title", { ascending: true })
   ]);
 
-  const sources = [...new Set((candidates || []).map((c) => c.source).filter(Boolean))].sort();
+  if (candidateError) throw candidateError;
 
-  const filtered = (candidates || []).filter((candidate) => {
-    const haystack = [
-      candidate.full_name,
-      candidate.email,
-      candidate.current_title,
-      candidate.current_company,
-      candidate.location
-    ].filter(Boolean).join(" ").toLowerCase();
+  const total = Number(candidates?.[0]?.total_count || 0);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const filtered = candidates || [];
+  const sources = [
+    ["recruiter","Recruiter"],
+    ["sourced","Sourced"],
+    ["linkedin","LinkedIn"],
+    ["referral","Referral"],
+    ["network","Network"],
+    ["website_application","Website application"],
+    ["website_network","Website network"],
+    ["applied","Applied"],
+    ["other","Other"]
+  ];
 
-    if (q && !haystack.includes(q)) return false;
-    if (source && candidate.source !== source) return false;
-    if (location && !String(candidate.location || "").toLowerCase().includes(location)) return false;
-
-    const applications = candidate.applications || [];
-    if (role && !applications.some((app) => app.job_id === role)) return false;
-    if (stage && !applications.some((app) => app.stage === stage)) return false;
-
-    return true;
-  });
+  function pageHref(nextPage) {
+    const query = new URLSearchParams();
+    if (params?.q) query.set("q", params.q);
+    if (role) query.set("role", role);
+    if (stage) query.set("stage", stage);
+    if (source) query.set("source", source);
+    if (params?.location) query.set("location", params.location);
+    if (sort && sort !== "recent") query.set("sort", sort);
+    query.set("page", String(nextPage));
+    return `/admin/candidates?${query.toString()}`;
+  }
 
   return (
     <AdminShell recruiter={recruiter}>
@@ -59,7 +75,7 @@ export default async function CandidatesPage({ searchParams }) {
         <div>
           <p className="eyebrow">Candidates</p>
           <h1>Talent network</h1>
-          <p className="muted">{filtered.length} candidate{filtered.length === 1 ? "" : "s"} shown</p>
+          <p className="muted">{total} candidate{total === 1 ? "" : "s"} · page {page} of {totalPages}</p>
         </div>
         <Link className="secondary-button" href="/admin/duplicates">Review duplicates</Link>
       </header>
@@ -85,7 +101,7 @@ export default async function CandidatesPage({ searchParams }) {
           <label>Source
             <select name="source" defaultValue={source}>
               <option value="">All sources</option>
-              {sources.map((item) => <option key={item}>{item}</option>)}
+              {sources.map(([value,label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
           <label>Location
@@ -148,6 +164,14 @@ export default async function CandidatesPage({ searchParams }) {
               </div>
             ))}
           </div>
+          <nav className="pagination" aria-label="Candidate pages">
+            <span>{total ? `${offset + 1}–${Math.min(offset + pageSize, total)} of ${total}` : "0 candidates"}</span>
+            <div>
+              {page > 1 ? <Link className="secondary-button" href={pageHref(page - 1)}>← Previous</Link> : null}
+              {page < totalPages ? <Link className="secondary-button" href={pageHref(page + 1)}>Next →</Link> : null}
+            </div>
+          </nav>
+          </>
         )}
       </section>
 
@@ -156,6 +180,7 @@ export default async function CandidatesPage({ searchParams }) {
         {!filtered.length ? (
           <div className="empty-state"><p>No candidates match these filters.</p></div>
         ) : (
+          <>
           <div className="table-list">
             {filtered.map((candidate) => (
               <Link className="table-row candidate-directory-row" href={`/admin/candidates/${candidate.id}`} key={candidate.id}>

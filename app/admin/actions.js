@@ -126,6 +126,7 @@ export async function addCandidate(formData) {
       current_company: clean(formData.get("current_company")),
       source: clean(formData.get("source")) || "recruiter",
       created_by: recruiter.id,
+      owner_id: recruiter.id,
       organization_id: recruiter.organization_id
     })
     .select("id")
@@ -173,6 +174,7 @@ export async function processIntake(formData) {
       current_title: intake.current_title,
       current_company: intake.current_company,
       source: intake.submission_type === "application" ? "website_application" : "website_network",
+      owner_id: recruiter.id,
       organization_id: intake.organization_id || recruiter.organization_id,
       latest_resume_path: intake.resume_path,
       latest_resume_name: intake.resume_name,
@@ -1595,4 +1597,69 @@ export async function mergeCandidateRecords(formData) {
   revalidatePath("/admin/duplicates");
   revalidatePath(`/admin/candidates/${data}`);
   redirect(`/admin/candidates/${data}?merged=1`);
+}
+
+
+export async function updateCandidateOwner(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const candidateId = clean(formData.get("candidate_id"));
+  const ownerId = clean(formData.get("owner_id"));
+  if (!candidateId || !ownerId) return;
+
+  const { data: owner, error: ownerError } = await supabase
+    .from("recruiters")
+    .select("id,organization_id,active,name")
+    .eq("id", ownerId)
+    .eq("organization_id", recruiter.organization_id)
+    .eq("active", true)
+    .single();
+
+  if (ownerError || !owner) throw ownerError || new Error("Invalid recruiter owner");
+
+  const { error } = await supabase
+    .from("candidates")
+    .update({ owner_id: ownerId, updated_at: new Date().toISOString() })
+    .eq("id", candidateId)
+    .eq("organization_id", recruiter.organization_id);
+
+  if (error) throw error;
+
+  await supabase.from("activities").insert({
+    candidate_id: candidateId,
+    actor_id: recruiter.id,
+    activity_type: "candidate_owner_changed",
+    details: { owner_id: ownerId, owner_name: owner.name }
+  });
+
+  revalidatePath("/admin/candidates");
+  revalidatePath(`/admin/candidates/${candidateId}`);
+}
+
+export async function updateJobOwner(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const jobId = clean(formData.get("job_id"));
+  const ownerId = clean(formData.get("owner_id"));
+  if (!jobId || !ownerId) return;
+
+  const { data: owner, error: ownerError } = await supabase
+    .from("recruiters")
+    .select("id,organization_id,active,name")
+    .eq("id", ownerId)
+    .eq("organization_id", recruiter.organization_id)
+    .eq("active", true)
+    .single();
+
+  if (ownerError || !owner) throw ownerError || new Error("Invalid recruiter owner");
+
+  const { error } = await supabase
+    .from("jobs")
+    .update({ owner_id: ownerId, updated_at: new Date().toISOString() })
+    .eq("id", jobId)
+    .eq("organization_id", recruiter.organization_id);
+
+  if (error) throw error;
+
+  revalidatePath("/admin/jobs");
+  revalidatePath(`/admin/jobs/${jobId}`);
+  revalidatePath("/admin/dashboard");
 }

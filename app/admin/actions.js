@@ -47,6 +47,7 @@ export async function createJob(formData) {
     .from("jobs")
     .insert({
       owner_id: recruiter.id,
+      organization_id: recruiter.organization_id,
       title,
       department: clean(formData.get("department")),
       client_name: clean(formData.get("client_name")),
@@ -124,7 +125,8 @@ export async function addCandidate(formData) {
       current_title: clean(formData.get("current_title")),
       current_company: clean(formData.get("current_company")),
       source: clean(formData.get("source")) || "recruiter",
-      created_by: recruiter.id
+      created_by: recruiter.id,
+      organization_id: recruiter.organization_id
     })
     .select("id")
     .single();
@@ -171,6 +173,7 @@ export async function processIntake(formData) {
       current_title: intake.current_title,
       current_company: intake.current_company,
       source: intake.submission_type === "application" ? "website_application" : "website_network",
+      organization_id: intake.organization_id || recruiter.organization_id,
       latest_resume_path: intake.resume_path,
       latest_resume_name: intake.resume_name,
       latest_resume_mime_type: intake.resume_mime_type,
@@ -240,6 +243,7 @@ export async function processIntake(formData) {
         job_id: intake.job_id,
         stage: "Applied",
         source: "website",
+        organization_id: intake.organization_id || recruiter.organization_id,
         resume_document_id: documentId,
         updated_at: new Date().toISOString()
       }, { onConflict: "candidate_id,job_id" })
@@ -321,7 +325,7 @@ export async function addCandidateNote(formData) {
 
 
 export async function attachCandidateToJob(formData) {
-  const { supabase } = await requireRecruiter();
+  const { recruiter, supabase } = await requireRecruiter();
   const candidateId = clean(formData.get("candidate_id"));
   const jobId = clean(formData.get("job_id"));
   if (!candidateId || !jobId) return;
@@ -331,6 +335,7 @@ export async function attachCandidateToJob(formData) {
     job_id: jobId,
     stage: "Applied",
     source: "recruiter",
+    organization_id: recruiter.organization_id,
     updated_at: new Date().toISOString()
   }, { onConflict: "candidate_id,job_id" });
 
@@ -697,6 +702,7 @@ export async function createTask(formData) {
     .from("tasks")
     .insert({
       owner_id: recruiter.id,
+      organization_id: recruiter.organization_id,
       candidate_id: candidateId,
       job_id: jobId,
       task_type: taskType,

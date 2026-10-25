@@ -27,6 +27,7 @@ import {
   sendCandidateEmail,
   updateApplicationStage,
   updateCandidate,
+  updateCandidateOwner,
   updateInterview,
   updateTaskStatus
 } from "../../actions";
@@ -90,7 +91,7 @@ export default async function CandidateDetailPage({ params, searchParams }) {
   const { data: candidate } = await supabase.from("candidates").select("*").eq("id", id).maybeSingle();
   if (!candidate) notFound();
 
-  const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }, { data: communications }, { data: documents }] = await Promise.all([
+  const [{ data: applications }, { data: notes }, { data: jobs }, { data: activities }, { data: tasks }, { data: communications }, { data: documents }, { data: teamRecruiters }] = await Promise.all([
     supabase.from("applications")
       .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, resume_document_id, job:jobs(id,title,interview_stages), interviews(id, stage_name, scheduled_at, status, notes, duration_minutes, meeting_url, google_event_id, google_calendar_link, created_at, updated_at), submission:candidate_submissions(id,status,recruiter_summary,key_strengths,compensation,availability,work_authorization,visa_sponsorship,relocation,location_preference,notice_period,client_notes,submitted_at,updated_at), client_feedback(id,feedback_type,feedback,reason,next_step,received_at), offers(id,status,base_salary,bonus,total_comp,currency,equity,sign_on_bonus,start_date,expiration_date,notes,extended_at,responded_at,created_at,updated_at), placement:placements(id,offer_id,start_date,placed_compensation,currency,fee_type,fee_percentage,estimated_fee,final_fee,invoice_status,invoice_date,payment_date,guarantee_end_date,notes,updated_at), portal_access:candidate_portal_access(id,expires_at,revoked_at,created_at), portal_updates:candidate_portal_updates(id,update_type,title,body,visible,created_at)")
       .eq("candidate_id", id)
@@ -121,7 +122,12 @@ export default async function CandidateDetailPage({ params, searchParams }) {
     supabase.from("candidate_documents")
       .select("id,document_type,file_name,storage_path,mime_type,file_size,label,notes,is_primary,created_at")
       .eq("candidate_id", id)
-      .order("created_at", { ascending:false })
+      .order("created_at", { ascending:false }),
+    supabase.from("recruiters")
+      .select("id,name,email,role")
+      .eq("organization_id", recruiter.organization_id)
+      .eq("active", true)
+      .order("name")
   ]);
 
   const googleConnection = await getGoogleConnection(supabase, recruiter.id);
@@ -162,6 +168,23 @@ export default async function CandidateDetailPage({ params, searchParams }) {
           {resumeUrl ? <a className="primary-button" href={resumeUrl}>Open résumé</a> : null}
         </div>
       </header>
+
+      <section className="panel owner-panel">
+        <div>
+          <p className="eyebrow">Ownership</p>
+          <h2>Candidate owner</h2>
+          <p className="muted">Assign this candidate to a recruiter in your organization.</p>
+        </div>
+        <form action={updateCandidateOwner} className="inline-form owner-form">
+          <input type="hidden" name="candidate_id" value={candidate.id} />
+          <select name="owner_id" defaultValue={candidate.owner_id || recruiter.id} required>
+            {(teamRecruiters || []).map((member) => (
+              <option value={member.id} key={member.id}>{member.name} · {member.role}</option>
+            ))}
+          </select>
+          <button type="submit">Assign owner</button>
+        </form>
+      </section>
 
       <div className="two-column">
         <section className="panel">

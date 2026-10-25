@@ -696,14 +696,25 @@ export async function createTask(formData) {
   const taskType = clean(formData.get("task_type")) || "other";
   const priority = clean(formData.get("priority")) || "medium";
   const dueAt = clean(formData.get("due_at"));
+  const ownerId = clean(formData.get("owner_id")) || recruiter.id;
 
   const allowedTypes = ["follow_up_candidate","follow_up_client","schedule_interview","send_submission","check_feedback","other"];
   if (!allowedTypes.includes(taskType) || !["low","medium","high"].includes(priority)) return;
 
+  const { data: taskOwner, error: ownerError } = await supabase
+    .from("recruiters")
+    .select("id")
+    .eq("id", ownerId)
+    .eq("organization_id", recruiter.organization_id)
+    .eq("active", true)
+    .single();
+
+  if (ownerError || !taskOwner) throw ownerError || new Error("Invalid task owner");
+
   const { data: task, error } = await supabase
     .from("tasks")
     .insert({
-      owner_id: recruiter.id,
+      owner_id: ownerId,
       organization_id: recruiter.organization_id,
       candidate_id: candidateId,
       job_id: jobId,

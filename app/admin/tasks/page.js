@@ -38,14 +38,19 @@ export default async function TasksPage({ searchParams }) {
   const filter = String(params?.filter || "open");
   const { recruiter, supabase } = await requireRecruiter();
 
-  const [{ data: tasks }, { data: candidates }, { data: jobs }] = await Promise.all([
+  const [{ data: tasks }, { data: candidates }, { data: jobs }, { data: teamRecruiters }] = await Promise.all([
     supabase.from("tasks")
-      .select("id,title,notes,task_type,priority,status,due_at,created_at,candidate:candidates(id,full_name,email),job:jobs(id,title)")
+      .select("id,title,notes,task_type,priority,status,due_at,created_at,owner:recruiters(id,name),candidate:candidates(id,full_name,email),job:jobs(id,title)")
       .order("status", { ascending: true })
       .order("due_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false }),
     supabase.from("candidates").select("id,full_name").order("full_name"),
-    supabase.from("jobs").select("id,title,status").in("status", ["draft","published","paused"]).order("title")
+    supabase.from("jobs").select("id,title,status").in("status", ["draft","published","paused"]).order("title"),
+    supabase.from("recruiters")
+      .select("id,name,email,role")
+      .eq("organization_id", recruiter.organization_id)
+      .eq("active", true)
+      .order("name")
   ]);
 
   const filtered = (tasks || []).filter((task) => {
@@ -98,6 +103,11 @@ export default async function TasksPage({ searchParams }) {
               {(jobs || []).map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}
             </select>
           </label>
+          <label>Owner
+            <select name="owner_id" defaultValue={recruiter.id}>
+              {(teamRecruiters || []).map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+            </select>
+          </label>
           <label className="task-notes-field">Notes<textarea name="notes" rows="2" /></label>
           <button type="submit">Create task</button>
         </form>
@@ -132,6 +142,7 @@ export default async function TasksPage({ searchParams }) {
                   <span>{task.task_type.replaceAll("_", " ")}</span>
                   <span>
                     {[
+                      task.owner?.name ? `Owner: ${task.owner.name}` : null,
                       task.candidate?.full_name,
                       task.job?.title,
                       task.due_at ? new Date(task.due_at).toLocaleString("en-US", { timeZone: "America/Puerto_Rico", dateStyle: "short", timeStyle: "short" }) : null

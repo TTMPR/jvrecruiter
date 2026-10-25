@@ -8,6 +8,7 @@ import {
   createTask,
   setPublicPostingState,
   updateJob,
+  updateJobOwner,
   updatePublicPosting,
   updateTaskStatus
 } from "../../actions";
@@ -19,7 +20,7 @@ export default async function JobDetailPage({ params, searchParams }) {
   const query = await searchParams;
   const { recruiter, supabase } = await requireRecruiter();
 
-  const [{ data: job }, { data: applications }, { data: tasks }] = await Promise.all([
+  const [{ data: job }, { data: applications }, { data: tasks }, { data: teamRecruiters }] = await Promise.all([
     supabase.from("jobs").select("*, job_posts(*)").eq("id", id).maybeSingle(),
     supabase.from("applications")
       .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, applied_at, candidate:candidates(id, full_name, current_title, current_company, location), submission:candidate_submissions(id,status,compensation,availability,work_authorization,visa_sponsorship,relocation,submitted_at,updated_at), client_feedback(id,feedback_type,reason,received_at), offers(id,status,base_salary,total_comp,currency,start_date,created_at), placement:placements(id,start_date,placed_compensation,currency,estimated_fee,final_fee,invoice_status,payment_date,guarantee_end_date)")
@@ -29,7 +30,12 @@ export default async function JobDetailPage({ params, searchParams }) {
       .select("id,title,task_type,priority,status,due_at,candidate:candidates(id,full_name)")
       .eq("job_id", id)
       .order("status", { ascending:true })
-      .order("due_at", { ascending:true, nullsFirst:false })
+      .order("due_at", { ascending:true, nullsFirst:false }),
+    supabase.from("recruiters")
+      .select("id,name,email,role")
+      .eq("organization_id", recruiter.organization_id)
+      .eq("active", true)
+      .order("name")
   ]);
 
   if (!job) notFound();
@@ -86,6 +92,23 @@ export default async function JobDetailPage({ params, searchParams }) {
           ) : null}
         </div>
       </header>
+
+      <section className="panel owner-panel">
+        <div>
+          <p className="eyebrow">Ownership</p>
+          <h2>Search owner</h2>
+          <p className="muted">Assign this search to a recruiter in your organization.</p>
+        </div>
+        <form action={updateJobOwner} className="inline-form owner-form">
+          <input type="hidden" name="job_id" value={job.id} />
+          <select name="owner_id" defaultValue={job.owner_id || recruiter.id} required>
+            {(teamRecruiters || []).map((member) => (
+              <option value={member.id} key={member.id}>{member.name} · {member.role}</option>
+            ))}
+          </select>
+          <button type="submit">Assign owner</button>
+        </form>
+      </section>
 
       <div className="two-column job-settings-grid">
         <section className="panel">

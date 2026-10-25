@@ -164,14 +164,6 @@ export default async function CandidatesPage({ searchParams }) {
               </div>
             ))}
           </div>
-          <nav className="pagination" aria-label="Candidate pages">
-            <span>{total ? `${offset + 1}–${Math.min(offset + pageSize, total)} of ${total}` : "0 candidates"}</span>
-            <div>
-              {page > 1 ? <Link className="secondary-button" href={pageHref(page - 1)}>← Previous</Link> : null}
-              {page < totalPages ? <Link className="secondary-button" href={pageHref(page + 1)}>Next →</Link> : null}
-            </div>
-          </nav>
-          </>
         )}
       </section>
 
@@ -198,6 +190,14 @@ export default async function CandidatesPage({ searchParams }) {
               </Link>
             ))}
           </div>
+          <nav className="pagination" aria-label="Candidate pages">
+            <span>{total ? `${offset + 1}–${Math.min(offset + pageSize, total)} of ${total}` : "0 candidates"}</span>
+            <div>
+              {page > 1 ? <Link className="secondary-button" href={pageHref(page - 1)}>← Previous</Link> : null}
+              {page < totalPages ? <Link className="secondary-button" href={pageHref(page + 1)}>Next →</Link> : null}
+            </div>
+          </nav>
+          </>
         )}
       </section>
     </AdminShell>

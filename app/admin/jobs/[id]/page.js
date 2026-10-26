@@ -6,10 +6,8 @@ import RichTextEditor from "../../rich-text-editor";
 import PipelineBoard from "../../pipeline-board";
 import {
   createTask,
+  saveRoleEditor,
   setPublicPostingState,
-  updateJob,
-  updateJobOwner,
-  updatePublicPosting,
   updateTaskStatus
 } from "../../actions";
 
@@ -44,6 +42,7 @@ export default async function JobDetailPage({ params, searchParams }) {
   const interviewStages = Array.isArray(job.interview_stages) ? job.interview_stages : [];
   const publishError = query?.publish_error;
   const publishedSuccess = query?.published === "1";
+  const savedSuccess = query?.saved === "1";
   const publishMissing = [
     !post.title ? "Public title" : null,
     !post.location ? "Location" : null,
@@ -93,53 +92,95 @@ export default async function JobDetailPage({ params, searchParams }) {
         </div>
       </header>
 
-      <section className="panel owner-panel">
-        <div>
-          <p className="eyebrow">Ownership</p>
-          <h2>Search owner</h2>
-          <p className="muted">Assign this search to a recruiter in your organization.</p>
+      <section className="role-editor-shell" id="role-editor">
+        <div className="role-editor-topbar">
+          <div>
+            <p className="eyebrow">Role editor</p>
+            <h2>Edit role</h2>
+            <p className="muted">Internal search details and the public posting live in one place.</p>
+          </div>
+          <nav className="role-editor-nav" aria-label="Role editor sections">
+            <a href="#role-basics">Basics</a>
+            <a href="#role-public">Public posting</a>
+            <a href="#role-content">Description</a>
+            <a href="#pipeline">Pipeline</a>
+          </nav>
         </div>
-        <form action={updateJobOwner} className="inline-form owner-form">
+
+        {savedSuccess && !publishedSuccess ? <div className="success-box">Changes saved.</div> : null}
+        {publishedSuccess ? <div className="success-box">Role saved and published successfully.</div> : null}
+        {publishError ? <div className="error-box">{publishError}</div> : null}
+
+        <form action={saveRoleEditor} className="role-editor-form">
           <input type="hidden" name="job_id" value={job.id} />
-          <select name="owner_id" defaultValue={job.owner_id || recruiter.id} required>
-            {(teamRecruiters || []).map((member) => (
-              <option value={member.id} key={member.id}>{member.name} · {member.role}</option>
-            ))}
-          </select>
-          <button type="submit">Assign owner</button>
-        </form>
-      </section>
 
-      <div className="two-column job-settings-grid">
-        <section className="panel">
-          <p className="eyebrow">Internal only</p>
-          <h2>Search setup</h2>
-          <p className="muted">These details stay inside JVRecruit and are never shown on the public posting.</p>
+          <section className="role-editor-section" id="role-basics">
+            <div className="role-editor-section-heading">
+              <div>
+                <span>01</span>
+                <div>
+                  <h3>Role basics</h3>
+                  <p>Internal information for your recruiting team.</p>
+                </div>
+              </div>
+              <span className="editor-visibility-badge">Internal only</span>
+            </div>
 
-          <form action={updateJob} className="stack-form">
-            <input type="hidden" name="job_id" value={job.id} />
-            <label>Internal role title<input name="title" defaultValue={job.title || ""} required /></label>
-            <label>Department<input name="department" defaultValue={job.department || ""} /></label>
-            <label>Client name<input name="client_name" defaultValue={job.client_name || ""} /></label>
-            <label>Hiring manager<input name="hiring_manager" defaultValue={job.hiring_manager || ""} /></label>
-            <label>Client contact<input name="client_contact" defaultValue={job.client_contact || ""} /></label>
-            <label>Interview stages<textarea name="interview_stages" rows="4" defaultValue={interviewStages.join("\n")} placeholder={"Recruiter Screen\nHiring Manager\nPanel\nFinal"} /></label>
-            <label>Internal notes<textarea name="internal_notes" rows="4" defaultValue={job.internal_notes || ""} /></label>
-            <button type="submit">Save internal details</button>
-          </form>
-        </section>
+            <div className="role-editor-grid">
+              <label className="role-editor-wide">Internal role title
+                <input name="title" defaultValue={job.title || ""} required />
+              </label>
+              <label>Owner
+                <select name="owner_id" defaultValue={job.owner_id || recruiter.id} required>
+                  {(teamRecruiters || []).map((member) => (
+                    <option value={member.id} key={member.id}>{member.name} · {member.role}</option>
+                  ))}
+                </select>
+              </label>
+              <label>Department
+                <input name="department" defaultValue={job.department || ""} />
+              </label>
+              <label>Client
+                <input name="client_name" defaultValue={job.client_name || ""} />
+              </label>
+              <label>Hiring manager
+                <input name="hiring_manager" defaultValue={job.hiring_manager || ""} />
+              </label>
+              <label>Client contact
+                <input name="client_contact" defaultValue={job.client_contact || ""} />
+              </label>
+              <label className="role-editor-wide">Interview stages
+                <textarea name="interview_stages" rows="3" defaultValue={interviewStages.join("\n")} placeholder={"Recruiter Screen\nHiring Manager\nPanel\nFinal"} />
+                <span className="field-help">One stage per line.</span>
+              </label>
+              <label className="role-editor-wide">Internal notes
+                <textarea name="internal_notes" rows="3" defaultValue={job.internal_notes || ""} />
+              </label>
+            </div>
+          </section>
 
-        <section className="panel public-post-panel">
-          <p className="eyebrow">Candidate-facing</p>
-          <h2>Public posting</h2>
-          <p className="muted">Only the fields in this section can appear on jvrecruiter.xyz.</p>
+          <section className="role-editor-section" id="role-public">
+            <div className="role-editor-section-heading">
+              <div>
+                <span>02</span>
+                <div>
+                  <h3>Public posting</h3>
+                  <p>The details candidates see before opening the full role.</p>
+                </div>
+              </div>
+              <span className="editor-visibility-badge public">Candidate-facing</span>
+            </div>
 
-          <form id="public-posting-form" action={updatePublicPosting} className="stack-form">
-            <input type="hidden" name="job_id" value={job.id} />
-            <label>Public title<input name="public_title" defaultValue={post.title || job.title || ""} required /></label>
-            <div className="form-grid">
-              <label>Department<input name="department" defaultValue={post.department || job.department || ""} /></label>
-              <label>Location <span className="required-label">Required</span><input name="location" defaultValue={post.location || ""} placeholder="Austin, TX / Remote" required /></label>
+            <div className="role-editor-grid">
+              <label className="role-editor-wide">Public title
+                <input name="public_title" defaultValue={post.title || job.title || ""} required />
+              </label>
+              <label>Department
+                <input name="public_department" defaultValue={post.department || job.department || ""} />
+              </label>
+              <label>Location <span className="required-label">Required</span>
+                <input name="location" defaultValue={post.location || ""} placeholder="Austin, TX / Remote" required />
+              </label>
               <label>Workplace
                 <select name="workplace" defaultValue={post.workplace || ""}>
                   <option value="">Select</option>
@@ -156,91 +197,99 @@ export default async function JobDetailPage({ params, searchParams }) {
                   <option value="Part-time">Part-time</option>
                 </select>
               </label>
-              <label>Compensation<input name="compensation" defaultValue={post.compensation || ""} placeholder="$180k–$220k base" /></label>
+              <label className="role-editor-wide">Compensation
+                <input name="compensation" defaultValue={post.compensation || ""} placeholder="$180k–$220k base" />
+              </label>
             </div>
 
-            <RichTextEditor
-              name="short_summary"
-              label="Short summary"
-              rows={3}
-              initialValue={post.short_summary || ""}
-              placeholder="A concise overview shown on the Open Roles page."
-            />
-            <RichTextEditor
-              name="description"
-              label="About the role"
-              rows={7}
-              initialValue={post.description || ""}
-            />
-            <RichTextEditor
-              name="responsibilities"
-              label="What you'll do"
-              rows={7}
-              initialValue={post.responsibilities || ""}
-            />
-            <RichTextEditor
-              name="requirements"
-              label="What we're looking for"
-              rows={7}
-              initialValue={post.requirements || ""}
-            />
-            <div className="public-post-actions">
-              <button type="submit" name="intent" value="save" className="secondary-button">Save draft</button>
-              {!post.published ? (
-                <button type="submit" name="intent" value="publish">Save & Publish</button>
-              ) : (
-                <button type="submit" name="intent" value="save">Save changes</button>
-              )}
-            </div>
-          </form>
-
-          <div className="publish-box" id="publish">
-            <div>
-              <strong>{post.published ? "This role is live." : "This role is not public."}</strong>
-              <p>
-                {post.published
-                  ? "Candidates can see it under Open Roles and submit an application."
-                  : "Complete the required fields below, then publish. Save & Publish will save your latest edits automatically."}
-              </p>
-            </div>
-
-            {publishedSuccess ? <div className="success-box">Role published successfully.</div> : null}
-            {publishError ? <div className="error-box">{publishError}</div> : null}
             {!post.published && publishMissing.length ? (
               <div className="publish-readiness">
-                <strong>Before publishing:</strong>
+                <strong>Needed before publishing:</strong>
                 <span>{publishMissing.join(" · ")}</span>
               </div>
             ) : null}
+          </section>
 
-            <div className="publish-actions">
-              {post.published ? (
-                <>
-                  <form action={setPublicPostingState}>
-                    <input type="hidden" name="job_id" value={job.id} />
-                    <input type="hidden" name="intent" value="unpublish" />
-                    <button className="secondary-button" type="submit">Unpublish</button>
-                  </form>
-                  <form action={setPublicPostingState}>
-                    <input type="hidden" name="job_id" value={job.id} />
-                    <input type="hidden" name="intent" value="close" />
-                    <button className="danger-button" type="submit">Close role</button>
-                  </form>
-                </>
-              ) : (
-                <button
-                  type="submit"
-                  form="public-posting-form"
-                  name="intent"
-                  value="publish"
-                 >
-                  Save & Publish
-                </button>
-              )}
+          <section className="role-editor-section" id="role-content">
+            <div className="role-editor-section-heading">
+              <div>
+                <span>03</span>
+                <div>
+                  <h3>Role description</h3>
+                  <p>Write and edit the candidate-facing content without leaving the page.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="role-content-stack">
+              <RichTextEditor
+                name="short_summary"
+                label="Short summary"
+                rows={3}
+                initialValue={post.short_summary || ""}
+                placeholder="A concise overview shown on the Open Roles page."
+              />
+              <RichTextEditor
+                name="description"
+                label="About the role"
+                rows={6}
+                initialValue={post.description || ""}
+              />
+              <RichTextEditor
+                name="responsibilities"
+                label="What you'll do"
+                rows={6}
+                initialValue={post.responsibilities || ""}
+              />
+              <RichTextEditor
+                name="requirements"
+                label="What we're looking for"
+                rows={6}
+                initialValue={post.requirements || ""}
+              />
+            </div>
+          </section>
+
+          <div className="role-editor-actions">
+            <div>
+              <span className={post.published ? "status-pill published" : "status-pill"}>
+                {post.published ? "Live" : "Draft"}
+              </span>
+              <span className="muted">{post.published ? "Saving keeps the live posting updated." : "Save anytime without publishing."}</span>
+            </div>
+            <div>
+              <button type="submit" name="intent" value="save" className="secondary-button">Save changes</button>
+              {!post.published ? (
+                <button type="submit" name="intent" value="publish">Save & Publish</button>
+              ) : null}
             </div>
           </div>
-        </section>
-      </div>
+        </form>
+
+        {post.published ? (
+          <div className="role-editor-live-actions">
+            <div>
+              <strong>Live posting controls</strong>
+              <p className="muted">These actions affect candidate visibility immediately.</p>
+            </div>
+            <div>
+              {post.slug ? (
+                <Link className="secondary-button" href={`/jobs/${post.slug}`} target="_blank">View live posting</Link>
+              ) : null}
+              <form action={setPublicPostingState}>
+                <input type="hidden" name="job_id" value={job.id} />
+                <input type="hidden" name="intent" value="unpublish" />
+                <button className="secondary-button" type="submit">Unpublish</button>
+              </form>
+              <form action={setPublicPostingState}>
+                <input type="hidden" name="job_id" value={job.id} />
+                <input type="hidden" name="intent" value="close" />
+                <button className="danger-button" type="submit">Close role</button>
+              </form>
+            </div>
+          </div>
+        ) : null}
+      </section>
 
       <section className="panel top-gap">
         <div className="section-heading">
@@ -392,7 +441,7 @@ export default async function JobDetailPage({ params, searchParams }) {
         </div>
       </section>
 
-      <section className="panel top-gap">
+      <section className="panel top-gap" id="pipeline">
         <div className="section-heading">
           <div>
             <h2>Pipeline</h2>

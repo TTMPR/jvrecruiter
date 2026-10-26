@@ -24,6 +24,11 @@ export const metadata = {
   },
   verification: {
     google: process.env.GOOGLE_SITE_VERIFICATION || undefined
+  },
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg"
   }
 };
 

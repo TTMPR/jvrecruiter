@@ -1749,7 +1749,7 @@ export async function saveRoleEditor(formData) {
     if (!publicPayload.description) missing.push("About the role");
 
     if (missing.length) {
-      redirect(`/admin/jobs/${jobId}?publish_error=${encodeURIComponent("Complete before publishing: " + missing.join(", "))}#role-editor`);
+      redirect(`/admin/jobs/${jobId}/edit?publish_error=${encodeURIComponent("Complete before publishing: " + missing.join(", "))}#role-editor`);
     }
 
     const [{ error: publishJobError }, { error: publishPostError }] = await Promise.all([
@@ -1768,11 +1768,11 @@ export async function saveRoleEditor(formData) {
     revalidatePath("/");
     revalidatePath("/admin/jobs");
     revalidatePath(`/admin/jobs/${jobId}`);
-    redirect(`/admin/jobs/${jobId}?saved=1&published=1#role-editor`);
+    redirect(`/admin/jobs/${jobId}/edit?saved=1&published=1#role-editor`);
   }
 
   revalidatePath("/");
   revalidatePath("/admin/jobs");
   revalidatePath(`/admin/jobs/${jobId}`);
-  redirect(`/admin/jobs/${jobId}?saved=1#role-editor`);
+  redirect(`/admin/jobs/${jobId}/edit?saved=1#role-editor`);
 }

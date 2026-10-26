@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireRecruiter } from "../../../lib/auth";
 import AdminShell from "../admin-shell";
-import { createTask, updateTaskStatus } from "../actions";
+import { updateTaskStatus } from "../actions";
+import AddTaskButton from "../add-task-button";
 import { gmailComposeUrl } from "../communication-links";
 
 const TYPES = [
@@ -36,6 +37,7 @@ function dueState(value, status) {
 export default async function TasksPage({ searchParams }) {
   const params = await searchParams;
   const filter = String(params?.filter || "open");
+  const sort = String(params?.sort || "due");
   const { recruiter, supabase } = await requireRecruiter();
 
   const [{ data: tasks }, { data: candidates }, { data: jobs }, { data: teamRecruiters }] = await Promise.all([
@@ -60,6 +62,16 @@ export default async function TasksPage({ searchParams }) {
     if (filter === "overdue") return state === "overdue";
     if (filter === "today") return state === "today";
     return task.status === "open";
+  }).sort((a,b) => {
+    if (sort === "newest") return new Date(b.created_at) - new Date(a.created_at);
+    if (sort === "priority") {
+      const weight = { high: 0, medium: 1, low: 2 };
+      return (weight[a.priority] ?? 9) - (weight[b.priority] ?? 9);
+    }
+    if (!a.due_at && !b.due_at) return 0;
+    if (!a.due_at) return 1;
+    if (!b.due_at) return -1;
+    return new Date(a.due_at) - new Date(b.due_at);
   });
 
   return (
@@ -70,48 +82,42 @@ export default async function TasksPage({ searchParams }) {
           <h1>Follow-ups</h1>
           <p className="muted">Keep candidate and client follow-ups from falling through the cracks.</p>
         </div>
+        <div className="header-actions">
+          <details className="filter-popover">
+            <summary>Filter & sort</summary>
+            <div className="filter-popover-panel task-filter-panel">
+              <form method="get" className="filter-grid compact-filter-grid">
+                <label>Status
+                  <select name="filter" defaultValue={filter}>
+                    <option value="open">Open</option>
+                    <option value="today">Due today</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="done">Done</option>
+                    <option value="all">All</option>
+                  </select>
+                </label>
+                <label>Sort
+                  <select name="sort" defaultValue={sort}>
+                    <option value="due">Due date</option>
+                    <option value="priority">Priority</option>
+                    <option value="newest">Newest</option>
+                  </select>
+                </label>
+                <div className="filter-actions">
+                  <button type="submit">Apply</button>
+                  <Link className="secondary-button" href="/admin/tasks">Clear</Link>
+                </div>
+              </form>
+            </div>
+          </details>
+          <AddTaskButton
+            recruiterId={recruiter.id}
+            candidates={candidates || []}
+            jobs={jobs || []}
+            recruiters={teamRecruiters || []}
+          />
+        </div>
       </header>
-
-      <section className="panel">
-        <h2>Create task</h2>
-        <form action={createTask} className="task-create-form">
-          <label>Task type
-            <select name="task_type" defaultValue="follow_up_candidate">
-              {TYPES.map(([value,label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label>Title<input name="title" required placeholder="Follow up with candidate" /></label>
-          <label>Priority
-            <select name="priority" defaultValue="medium">
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </label>
-          <label>Due
-            <input name="due_at" type="datetime-local" />
-          </label>
-          <label>Candidate
-            <select name="candidate_id" defaultValue="">
-              <option value="">None</option>
-              {(candidates || []).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.full_name}</option>)}
-            </select>
-          </label>
-          <label>Role
-            <select name="job_id" defaultValue="">
-              <option value="">None</option>
-              {(jobs || []).map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}
-            </select>
-          </label>
-          <label>Owner
-            <select name="owner_id" defaultValue={recruiter.id}>
-              {(teamRecruiters || []).map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
-            </select>
-          </label>
-          <label className="task-notes-field">Notes<textarea name="notes" rows="2" /></label>
-          <button type="submit">Create task</button>
-        </form>
-      </section>
 
       <section className="panel top-gap">
         <div className="section-heading">
@@ -119,13 +125,7 @@ export default async function TasksPage({ searchParams }) {
             <h2>Task list</h2>
             <p className="muted">{filtered.length} task{filtered.length === 1 ? "" : "s"}</p>
           </div>
-          <nav className="task-filters">
-            <Link className={filter === "open" ? "active" : ""} href="/admin/tasks?filter=open">Open</Link>
-            <Link className={filter === "today" ? "active" : ""} href="/admin/tasks?filter=today">Due today</Link>
-            <Link className={filter === "overdue" ? "active" : ""} href="/admin/tasks?filter=overdue">Overdue</Link>
-            <Link className={filter === "done" ? "active" : ""} href="/admin/tasks?filter=done">Done</Link>
-            <Link className={filter === "all" ? "active" : ""} href="/admin/tasks?filter=all">All</Link>
-          </nav>
+          <span className="active-filter-label">{filter === "all" ? "All tasks" : filter === "today" ? "Due today" : filter === "overdue" ? "Overdue" : filter === "done" ? "Done" : "Open"}</span>
         </div>
 
         <div className="task-list">

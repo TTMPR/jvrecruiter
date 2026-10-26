@@ -8,7 +8,7 @@ export default async function JobsPage() {
 
   const { data: jobs } = await supabase
     .from("jobs")
-    .select("id, title, status, department, client_name, updated_at")
+    .select("id, title, status, department, client_name, updated_at, job_posts(slug,published)")
     .order("updated_at", { ascending: false });
 
   return (
@@ -45,16 +45,30 @@ export default async function JobsPage() {
             <p>No jobs yet.</p>
           </div>
         ) : (
-          <div className="table-list">
-            {jobs.map((job) => (
-              <Link className="table-row" href={`/admin/jobs/${job.id}`} key={job.id}>
-                <div>
-                  <strong>{job.title}</strong>
-                  <span>{[job.client_name, job.department].filter(Boolean).join(" · ") || "Confidential role"}</span>
-                </div>
-                <span className="status-pill">{job.status}</span>
-              </Link>
-            ))}
+          <div className="job-list">
+            {jobs.map((job) => {
+              const post = job.job_posts?.[0];
+              return (
+                <article className="job-list-card" key={job.id}>
+                  <Link className="job-list-main" href={`/admin/jobs/${job.id}`}>
+                    <div>
+                      <strong>{job.title}</strong>
+                      <span>{[job.client_name, job.department].filter(Boolean).join(" · ") || "Confidential role"}</span>
+                    </div>
+                    <span className={post?.published ? "status-pill published" : "status-pill"}>
+                      {post?.published ? "Live" : job.status}
+                    </span>
+                  </Link>
+                  <div className="job-list-actions">
+                    <Link className="secondary-button" href={`/admin/jobs/${job.id}#role-editor`}>Edit role</Link>
+                    <Link className="secondary-button" href={`/admin/jobs/${job.id}#pipeline`}>Pipeline</Link>
+                    {post?.published && post.slug ? (
+                      <Link className="secondary-button" href={`/jobs/${post.slug}`} target="_blank">View posting</Link>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>

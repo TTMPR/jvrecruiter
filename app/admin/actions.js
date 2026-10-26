@@ -1674,3 +1674,105 @@ export async function updateJobOwner(formData) {
   revalidatePath(`/admin/jobs/${jobId}`);
   revalidatePath("/admin/dashboard");
 }
+
+
+export async function saveRoleEditor(formData) {
+  const { recruiter, supabase } = await requireRecruiter();
+  const jobId = clean(formData.get("job_id"));
+  const intent = clean(formData.get("intent")) || "save";
+  const title = clean(formData.get("title"));
+  const ownerId = clean(formData.get("owner_id")) || recruiter.id;
+
+  if (!jobId || !title) return;
+
+  const { data: owner, error: ownerError } = await supabase
+    .from("recruiters")
+    .select("id")
+    .eq("id", ownerId)
+    .eq("organization_id", recruiter.organization_id)
+    .eq("active", true)
+    .single();
+
+  if (ownerError || !owner) throw ownerError || new Error("Invalid role owner");
+
+  const interviewStages = String(formData.get("interview_stages") || "")
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const publicPayload = {
+    title: clean(formData.get("public_title")) || title,
+    department: clean(formData.get("public_department")),
+    location: clean(formData.get("location")),
+    workplace: clean(formData.get("workplace")),
+    employment_type: clean(formData.get("employment_type")),
+    compensation: clean(formData.get("compensation")),
+    short_summary: clean(formData.get("short_summary")),
+    description: clean(formData.get("description")),
+    responsibilities: clean(formData.get("responsibilities")),
+    requirements: clean(formData.get("requirements")),
+    updated_at: new Date().toISOString()
+  };
+
+  const now = new Date().toISOString();
+
+  const { error: jobError } = await supabase
+    .from("jobs")
+    .update({
+      owner_id: ownerId,
+      title,
+      department: clean(formData.get("department")),
+      client_name: clean(formData.get("client_name")),
+      hiring_manager: clean(formData.get("hiring_manager")),
+      client_contact: clean(formData.get("client_contact")),
+      interview_stages: interviewStages,
+      internal_notes: clean(formData.get("internal_notes")),
+      updated_at: now
+    })
+    .eq("id", jobId)
+    .eq("organization_id", recruiter.organization_id);
+
+  if (jobError) throw jobError;
+
+  const { error: postError } = await supabase
+    .from("job_posts")
+    .update(publicPayload)
+    .eq("job_id", jobId);
+
+  if (postError) throw postError;
+
+  if (intent === "publish") {
+    const missing = [];
+    if (!publicPayload.title) missing.push("Public title");
+    if (!publicPayload.location) missing.push("Location");
+    if (!publicPayload.short_summary) missing.push("Short summary");
+    if (!publicPayload.description) missing.push("About the role");
+
+    if (missing.length) {
+      redirect(`/admin/jobs/${jobId}?publish_error=${encodeURIComponent("Complete before publishing: " + missing.join(", "))}#role-editor`);
+    }
+
+    const [{ error: publishJobError }, { error: publishPostError }] = await Promise.all([
+      supabase.from("jobs")
+        .update({ status: "published", updated_at: now })
+        .eq("id", jobId)
+        .eq("organization_id", recruiter.organization_id),
+      supabase.from("job_posts")
+        .update({ published: true, published_at: now, updated_at: now })
+        .eq("job_id", jobId)
+    ]);
+
+    if (publishJobError) throw publishJobError;
+    if (publishPostError) throw publishPostError;
+
+    revalidatePath("/");
+    revalidatePath("/admin/jobs");
+    revalidatePath(`/admin/jobs/${jobId}`);
+    redirect(`/admin/jobs/${jobId}?saved=1&published=1#role-editor`);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/jobs");
+  revalidatePath(`/admin/jobs/${jobId}`);
+  redirect(`/admin/jobs/${jobId}?saved=1#role-editor`);
+}

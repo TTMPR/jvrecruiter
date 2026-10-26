@@ -60,7 +60,7 @@ export default async function JobsPage() {
                     </span>
                   </Link>
                   <div className="job-list-actions">
-                    <Link className="secondary-button" href={`/admin/jobs/${job.id}#role-editor`}>Edit role</Link>
+                    <Link className="secondary-button" href={`/admin/jobs/${job.id}/edit`}>Edit JD</Link>
                     <Link className="secondary-button" href={`/admin/jobs/${job.id}#pipeline`}>Pipeline</Link>
                     {post?.published && post.slug ? (
                       <Link className="secondary-button" href={`/jobs/${post.slug}`} target="_blank">View posting</Link>

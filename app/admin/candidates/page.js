@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireRecruiter } from "../../../lib/auth";
 import AdminShell from "../admin-shell";
-import { addCandidate } from "../actions";
+import AddCandidateButton from "../add-candidate-button";
 
 const STAGES = ["Applied","Prescreen","Submitted","Client Sub","Interviewing","Offer","Placed","Rejected","Withdrawn","Archived"];
 
@@ -72,74 +72,56 @@ export default async function CandidatesPage({ searchParams }) {
           <h1>Talent network</h1>
           <p className="muted">{total} candidate{total === 1 ? "" : "s"} · page {page} of {totalPages}</p>
         </div>
-        <Link className="secondary-button" href="/admin/duplicates">Review duplicates</Link>
+        <div className="header-actions">
+          <details className="filter-popover">
+            <summary>Filter & sort</summary>
+            <div className="filter-popover-panel">
+              <form method="get" className="filter-grid compact-filter-grid">
+                <label>Search
+                  <input name="q" defaultValue={params?.q || ""} placeholder="Name, email, title, company..." />
+                </label>
+                <label>Role
+                  <select name="role" defaultValue={role}>
+                    <option value="">All roles</option>
+                    {(jobs || []).map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}
+                  </select>
+                </label>
+                <label>Stage
+                  <select name="stage" defaultValue={stage}>
+                    <option value="">All stages</option>
+                    {STAGES.map((item) => <option key={item}>{item}</option>)}
+                  </select>
+                </label>
+                <label>Source
+                  <select name="source" defaultValue={source}>
+                    <option value="">All sources</option>
+                    {sources.map(([value,label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </label>
+                <label>Location
+                  <input name="location" defaultValue={params?.location || ""} placeholder="Austin, Puerto Rico..." />
+                </label>
+                <label>Sort
+                  <select name="sort" defaultValue={sort}>
+                    <option value="recent">Recently updated</option>
+                    <option value="oldest">Oldest updated</option>
+                  </select>
+                </label>
+                <div className="filter-actions">
+                  <button type="submit">Apply</button>
+                  <Link className="secondary-button" href="/admin/candidates">Clear</Link>
+                </div>
+              </form>
+            </div>
+          </details>
+          <Link className="secondary-button" href="/admin/duplicates">Duplicates</Link>
+          <AddCandidateButton />
+        </div>
       </header>
 
-      <section className="panel">
-        <h2>Search & filters</h2>
-        <form method="get" className="filter-grid">
-          <label>Search
-            <input name="q" defaultValue={params?.q || ""} placeholder="Name, email, title, company..." />
-          </label>
-          <label>Role
-            <select name="role" defaultValue={role}>
-              <option value="">All roles</option>
-              {(jobs || []).map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}
-            </select>
-          </label>
-          <label>Stage
-            <select name="stage" defaultValue={stage}>
-              <option value="">All stages</option>
-              {STAGES.map((item) => <option key={item}>{item}</option>)}
-            </select>
-          </label>
-          <label>Source
-            <select name="source" defaultValue={source}>
-              <option value="">All sources</option>
-              {sources.map(([value,label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label>Location
-            <input name="location" defaultValue={params?.location || ""} placeholder="Austin, Puerto Rico..." />
-          </label>
-          <label>Sort
-            <select name="sort" defaultValue={sort}>
-              <option value="recent">Recently updated</option>
-              <option value="oldest">Oldest updated</option>
-            </select>
-          </label>
-          <div className="filter-actions">
-            <button type="submit">Apply filters</button>
-            <Link className="secondary-button" href="/admin/candidates">Clear</Link>
-          </div>
-        </form>
-      </section>
 
-      <section className="panel top-gap">
-        <h2>Add candidate</h2>
-        <form action={addCandidate} className="stack-form">
-          <div className="form-grid">
-            <label>Full name<input name="full_name" required /></label>
-            <label>Email<input name="email" type="email" /></label>
-            <label>Phone<input name="phone" /></label>
-            <label>Location<input name="location" /></label>
-            <label>Current title<input name="current_title" /></label>
-            <label>Current company<input name="current_company" /></label>
-            <label>LinkedIn<input name="linkedin_url" type="url" /></label>
-            <label>Source
-              <select name="source" defaultValue="recruiter">
-                <option value="recruiter">Recruiter</option>
-                <option value="sourced">Sourced</option>
-                <option value="linkedin">LinkedIn</option>
-                <option value="referral">Referral</option>
-                <option value="network">Network</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-          </div>
-          <button type="submit">Add candidate</button>
-        </form>
-      </section>
+
+
 
 
 

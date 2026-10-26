@@ -55,13 +55,20 @@ export default function PublicIntakeForm({ type = "network", jobId = null, compa
       resumeMimeType = resume.type;
     }
 
+    const linkedinUrl = String(data.get("linkedin_url") || "").trim();
+
+    if (isApplication && !linkedinUrl) {
+      setState({ status: "error", message: "Please add your LinkedIn profile to submit this application." });
+      return;
+    }
+
     const payload = {
       submission_type: type,
       job_id: isApplication ? jobId : null,
       full_name: String(data.get("full_name") || "").trim(),
       email: String(data.get("email") || "").trim(),
       phone: String(data.get("phone") || "").trim() || null,
-      linkedin_url: String(data.get("linkedin_url") || "").trim() || null,
+      linkedin_url: linkedinUrl || null,
       location: String(data.get("location") || "").trim() || null,
       current_title: String(data.get("current_title") || "").trim() || null,
       current_company: String(data.get("current_company") || "").trim() || null,
@@ -154,13 +161,14 @@ export default function PublicIntakeForm({ type = "network", jobId = null, compa
         </div>
 
         <label>
-          LinkedIn <span className="optional-label">Optional</span>
+          LinkedIn {isApplication ? <span aria-hidden="true">*</span> : <span className="optional-label">Optional</span>}
           <input
             name="linkedin_url"
             type="url"
             inputMode="url"
             autoComplete="url"
             placeholder="https://linkedin.com/in/..."
+            required={isApplication}
           />
         </label>
 

@@ -18,8 +18,9 @@ export default async function JobDetailPage({ params, searchParams }) {
   const query = await searchParams;
   const { recruiter, supabase } = await requireRecruiter();
 
-  const [{ data: job }, { data: applications }, { data: tasks }, { data: teamRecruiters }] = await Promise.all([
-    supabase.from("jobs").select("*, job_posts(*)").eq("id", id).maybeSingle(),
+  const [{ data: job }, { data: post }, { data: applications }, { data: tasks }, { data: teamRecruiters }] = await Promise.all([
+    supabase.from("jobs").select("*").eq("id", id).maybeSingle(),
+    supabase.from("job_posts").select("*").eq("job_id", id).maybeSingle(),
     supabase.from("applications")
       .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, applied_at, candidate:candidates(id, full_name, current_title, current_company, location), submission:candidate_submissions(id,status,compensation,availability,work_authorization,visa_sponsorship,relocation,submitted_at,updated_at), client_feedback(id,feedback_type,reason,received_at), offers(id,status,base_salary,total_comp,currency,start_date,created_at), placement:placements(id,start_date,placed_compensation,currency,estimated_fee,final_fee,invoice_status,payment_date,guarantee_end_date)")
       .eq("job_id", id)
@@ -38,16 +39,16 @@ export default async function JobDetailPage({ params, searchParams }) {
 
   if (!job) notFound();
 
-  const post = job.job_posts?.[0] || {};
+  const publicPost = post || {};
   const interviewStages = Array.isArray(job.interview_stages) ? job.interview_stages : [];
   const publishError = query?.publish_error;
   const publishedSuccess = query?.published === "1";
   const savedSuccess = query?.saved === "1";
   const publishMissing = [
-    !post.title ? "Public title" : null,
-    !post.location ? "Location" : null,
-    !post.short_summary ? "Short summary" : null,
-    !post.description ? "About the role" : null
+    !publicPost.title ? "Public title" : null,
+    !publicPost.location ? "Location" : null,
+    !publicPost.short_summary ? "Short summary" : null,
+    !publicPost.description ? "About the role" : null
   ].filter(Boolean);
 
   const submittedApps = (applications || []).filter((app) => app.submission?.status === "submitted");
@@ -81,11 +82,11 @@ export default async function JobDetailPage({ params, searchParams }) {
           <p className="muted">{job.client_name || "Confidential client"} · {job.status}</p>
         </div>
         <div className="publish-state">
-          <span className={post.published ? "status-pill published" : "status-pill"}>
-            {post.published ? "Live" : "Not public"}
+          <span className={publicPost.published ? "status-pill published" : "status-pill"}>
+            {publicPost.published ? "Live" : "Not public"}
           </span>
-          {post.published && post.slug ? (
-            <Link className="secondary-button" href={`/jobs/${post.slug}`} target="_blank">
+          {publicPost.published && publicPost.slug ? (
+            <Link className="secondary-button" href={`/jobs/${publicPost.slug}`} target="_blank">
               View live posting
             </Link>
           ) : null}
@@ -173,16 +174,16 @@ export default async function JobDetailPage({ params, searchParams }) {
 
             <div className="role-editor-grid">
               <label className="role-editor-wide">Public title
-                <input name="public_title" defaultValue={post.title || job.title || ""} required />
+                <input name="public_title" defaultValue={publicPost.title || job.title || ""} required />
               </label>
               <label>Department
-                <input name="public_department" defaultValue={post.department || job.department || ""} />
+                <input name="public_department" defaultValue={publicPost.department || job.department || ""} />
               </label>
               <label>Location <span className="required-label">Required</span>
-                <input name="location" defaultValue={post.location || ""} placeholder="Austin, TX / Remote" required />
+                <input name="location" defaultValue={publicPost.location || ""} placeholder="Austin, TX / Remote" required />
               </label>
               <label>Workplace
-                <select name="workplace" defaultValue={post.workplace || ""}>
+                <select name="workplace" defaultValue={publicPost.workplace || ""}>
                   <option value="">Select</option>
                   <option value="Remote">Remote</option>
                   <option value="Hybrid">Hybrid</option>
@@ -190,7 +191,7 @@ export default async function JobDetailPage({ params, searchParams }) {
                 </select>
               </label>
               <label>Employment type
-                <select name="employment_type" defaultValue={post.employment_type || ""}>
+                <select name="employment_type" defaultValue={publicPost.employment_type || ""}>
                   <option value="">Select</option>
                   <option value="Full-time">Full-time</option>
                   <option value="Contract">Contract</option>
@@ -198,11 +199,11 @@ export default async function JobDetailPage({ params, searchParams }) {
                 </select>
               </label>
               <label className="role-editor-wide">Compensation
-                <input name="compensation" defaultValue={post.compensation || ""} placeholder="$180k–$220k base" />
+                <input name="compensation" defaultValue={publicPost.compensation || ""} placeholder="$180k–$220k base" />
               </label>
             </div>
 
-            {!post.published && publishMissing.length ? (
+            {!publicPost.published && publishMissing.length ? (
               <div className="publish-readiness">
                 <strong>Needed before publishing:</strong>
                 <span>{publishMissing.join(" · ")}</span>
@@ -226,55 +227,55 @@ export default async function JobDetailPage({ params, searchParams }) {
                 name="short_summary"
                 label="Short summary"
                 rows={3}
-                initialValue={post.short_summary || ""}
+                initialValue={publicPost.short_summary || ""}
                 placeholder="A concise overview shown on the Open Roles page."
               />
               <RichTextEditor
                 name="description"
                 label="About the role"
                 rows={6}
-                initialValue={post.description || ""}
+                initialValue={publicPost.description || ""}
               />
               <RichTextEditor
                 name="responsibilities"
                 label="What you'll do"
                 rows={6}
-                initialValue={post.responsibilities || ""}
+                initialValue={publicPost.responsibilities || ""}
               />
               <RichTextEditor
                 name="requirements"
                 label="What we're looking for"
                 rows={6}
-                initialValue={post.requirements || ""}
+                initialValue={publicPost.requirements || ""}
               />
             </div>
           </section>
 
           <div className="role-editor-actions">
             <div>
-              <span className={post.published ? "status-pill published" : "status-pill"}>
-                {post.published ? "Live" : "Draft"}
+              <span className={publicPost.published ? "status-pill published" : "status-pill"}>
+                {publicPost.published ? "Live" : "Draft"}
               </span>
-              <span className="muted">{post.published ? "Saving keeps the live posting updated." : "Save anytime without publishing."}</span>
+              <span className="muted">{publicPost.published ? "Saving keeps the live posting updated." : "Save anytime without publishing."}</span>
             </div>
             <div>
               <button type="submit" name="intent" value="save" className="secondary-button">Save changes</button>
-              {!post.published ? (
+              {!publicPost.published ? (
                 <button type="submit" name="intent" value="publish">Save & Publish</button>
               ) : null}
             </div>
           </div>
         </form>
 
-        {post.published ? (
+        {publicPost.published ? (
           <div className="role-editor-live-actions">
             <div>
               <strong>Live posting controls</strong>
               <p className="muted">These actions affect candidate visibility immediately.</p>
             </div>
             <div>
-              {post.slug ? (
-                <Link className="secondary-button" href={`/jobs/${post.slug}`} target="_blank">View live posting</Link>
+              {publicPost.slug ? (
+                <Link className="secondary-button" href={`/jobs/${publicPost.slug}`} target="_blank">View live posting</Link>
               ) : null}
               <form action={setPublicPostingState}>
                 <input type="hidden" name="job_id" value={job.id} />

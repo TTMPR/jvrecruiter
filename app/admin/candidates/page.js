@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireRecruiter } from "../../../lib/auth";
 import AdminShell from "../admin-shell";
-import { addCandidate, processIntake } from "../actions";
+import { addCandidate } from "../actions";
 
 const STAGES = ["Applied","Prescreen","Submitted","Client Sub","Interviewing","Offer","Placed","Rejected","Withdrawn","Archived"];
 
@@ -19,7 +19,7 @@ export default async function CandidatesPage({ searchParams }) {
 
   const { recruiter, supabase } = await requireRecruiter();
 
-  const [{ data: candidates, error: candidateError }, { data: intake }, { data: jobs }] = await Promise.all([
+  const [{ data: candidates, error: candidateError }, { data: jobs }] = await Promise.all([
     supabase.rpc("search_candidates_paginated", {
       search_query: q || null,
       role_filter: role || null,
@@ -30,11 +30,6 @@ export default async function CandidatesPage({ searchParams }) {
       page_offset: offset,
       page_limit: pageSize
     }),
-    supabase.from("public_intake")
-      .select("id, submission_type, full_name, email, current_title, current_company, location, created_at, job_id")
-      .eq("status", "new")
-      .order("created_at", { ascending: false })
-      .limit(50),
     supabase.from("jobs")
       .select("id,title,status")
       .order("title", { ascending: true })
@@ -146,26 +141,7 @@ export default async function CandidatesPage({ searchParams }) {
         </form>
       </section>
 
-      <section className="panel top-gap">
-        <h2>Website intake {intake?.length ? `(${intake.length})` : ""}</h2>
-        {!intake?.length ? <p className="muted">No new website submissions.</p> : (
-          <div className="table-list">
-            {intake.map((item) => (
-              <div className="table-row" key={item.id}>
-                <div>
-                  <strong>{item.full_name}</strong>
-                  <span>{item.submission_type} · {[item.current_title, item.current_company, item.location].filter(Boolean).join(" · ")}</span>
-                  <span>{item.email}</span>
-                </div>
-                <form action={processIntake}>
-                  <input type="hidden" name="intake_id" value={item.id} />
-                  <button type="submit">Process</button>
-                </form>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+
 
       <section className="panel top-gap">
         <h2>Candidate directory</h2>

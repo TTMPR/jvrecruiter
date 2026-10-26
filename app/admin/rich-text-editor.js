@@ -1,10 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function RichTextEditor({ name, label, initialValue = "", rows = 6, placeholder = "" }) {
   const [value, setValue] = useState(initialValue || "");
   const ref = useRef(null);
+
+  useEffect(() => {
+    setValue(initialValue || "");
+  }, [initialValue]);
 
   function replaceSelection(transform) {
     const textarea = ref.current;

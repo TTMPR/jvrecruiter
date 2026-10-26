@@ -2,12 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRecruiter } from "../../../../lib/auth";
 import AdminShell from "../../admin-shell";
-import RichTextEditor from "../../rich-text-editor";
 import PipelineBoard from "../../pipeline-board";
 import {
   createTask,
-  saveRoleEditor,
-  setPublicPostingState,
   updateTaskStatus
 } from "../../actions";
 
@@ -18,9 +15,8 @@ export default async function JobDetailPage({ params, searchParams }) {
   const query = await searchParams;
   const { recruiter, supabase } = await requireRecruiter();
 
-  const [{ data: job }, { data: post }, { data: applications }, { data: tasks }, { data: teamRecruiters }] = await Promise.all([
+  const [{ data: job }, { data: applications }, { data: tasks }] = await Promise.all([
     supabase.from("jobs").select("*").eq("id", id).maybeSingle(),
-    supabase.from("job_posts").select("*").eq("job_id", id).maybeSingle(),
     supabase.from("applications")
       .select("id, stage, interview_stage, disposition, disposition_reason, disposition_at, applied_at, candidate:candidates(id, full_name, current_title, current_company, location), submission:candidate_submissions(id,status,compensation,availability,work_authorization,visa_sponsorship,relocation,submitted_at,updated_at), client_feedback(id,feedback_type,reason,received_at), offers(id,status,base_salary,total_comp,currency,start_date,created_at), placement:placements(id,start_date,placed_compensation,currency,estimated_fee,final_fee,invoice_status,payment_date,guarantee_end_date)")
       .eq("job_id", id)
@@ -29,28 +25,12 @@ export default async function JobDetailPage({ params, searchParams }) {
       .select("id,title,task_type,priority,status,due_at,candidate:candidates(id,full_name)")
       .eq("job_id", id)
       .order("status", { ascending:true })
-      .order("due_at", { ascending:true, nullsFirst:false }),
-    supabase.from("recruiters")
-      .select("id,name,email,role")
-      .eq("organization_id", recruiter.organization_id)
-      .eq("active", true)
-      .order("name")
+      .order("due_at", { ascending:true, nullsFirst:false })
   ]);
 
   if (!job) notFound();
 
-  const publicPost = post || {};
   const interviewStages = Array.isArray(job.interview_stages) ? job.interview_stages : [];
-  const publishError = query?.publish_error;
-  const publishedSuccess = query?.published === "1";
-  const savedSuccess = query?.saved === "1";
-  const publishMissing = [
-    !publicPost.title ? "Public title" : null,
-    !publicPost.location ? "Location" : null,
-    !publicPost.short_summary ? "Short summary" : null,
-    !publicPost.description ? "About the role" : null
-  ].filter(Boolean);
-
   const submittedApps = (applications || []).filter((app) => app.submission?.status === "submitted");
   const advancedCount = (applications || []).filter((app) => app.disposition === "advanced").length;
   const holdCount = (applications || []).filter((app) => app.disposition === "hold").length;
@@ -82,214 +62,27 @@ export default async function JobDetailPage({ params, searchParams }) {
           <p className="muted">{job.client_name || "Confidential client"} · {job.status}</p>
         </div>
         <div className="publish-state">
-          <span className={publicPost.published ? "status-pill published" : "status-pill"}>
-            {publicPost.published ? "Live" : "Not public"}
-          </span>
-          {publicPost.published && publicPost.slug ? (
-            <Link className="secondary-button" href={`/jobs/${publicPost.slug}`} target="_blank">
-              View live posting
-            </Link>
-          ) : null}
+          <Link className="secondary-button" href={`/admin/jobs/${job.id}/edit`}>Edit JD</Link>
         </div>
       </header>
 
-      <section className="role-editor-shell" id="role-editor">
-        <div className="role-editor-topbar">
-          <div>
-            <p className="eyebrow">Role editor</p>
-            <h2>Edit role</h2>
-            <p className="muted">Internal search details and the public posting live in one place.</p>
-          </div>
-          <nav className="role-editor-nav" aria-label="Role editor sections">
-            <a href="#role-basics">Basics</a>
-            <a href="#role-public">Public posting</a>
-            <a href="#role-content">Description</a>
-            <a href="#pipeline">Pipeline</a>
-          </nav>
+      <section className="role-workspace-summary">
+        <div>
+          <p className="eyebrow">Recruiting workspace</p>
+          <h2>Candidate pipeline</h2>
+          <p className="muted">${(applications || []).length} candidate${(applications || []).length === 1 ? "" : "s"} in this search.</p>
         </div>
+        <Link className="secondary-button" href={`/admin/jobs/${job.id}/edit`}>Edit JD</Link>
+      </section>
 
-        {savedSuccess && !publishedSuccess ? <div className="success-box">Changes saved.</div> : null}
-        {publishedSuccess ? <div className="success-box">Role saved and published successfully.</div> : null}
-        {publishError ? <div className="error-box">{publishError}</div> : null}
-
-        <form action={saveRoleEditor} className="role-editor-form">
-          <input type="hidden" name="job_id" value={job.id} />
-
-          <section className="role-editor-section" id="role-basics">
-            <div className="role-editor-section-heading">
-              <div>
-                <span>01</span>
-                <div>
-                  <h3>Role basics</h3>
-                  <p>Internal information for your recruiting team.</p>
-                </div>
-              </div>
-              <span className="editor-visibility-badge">Internal only</span>
-            </div>
-
-            <div className="role-editor-grid">
-              <label className="role-editor-wide">Internal role title
-                <input name="title" defaultValue={job.title || ""} required />
-              </label>
-              <label>Owner
-                <select name="owner_id" defaultValue={job.owner_id || recruiter.id} required>
-                  {(teamRecruiters || []).map((member) => (
-                    <option value={member.id} key={member.id}>{member.name} · {member.role}</option>
-                  ))}
-                </select>
-              </label>
-              <label>Department
-                <input name="department" defaultValue={job.department || ""} />
-              </label>
-              <label>Client
-                <input name="client_name" defaultValue={job.client_name || ""} />
-              </label>
-              <label>Hiring manager
-                <input name="hiring_manager" defaultValue={job.hiring_manager || ""} />
-              </label>
-              <label>Client contact
-                <input name="client_contact" defaultValue={job.client_contact || ""} />
-              </label>
-              <label className="role-editor-wide">Interview stages
-                <textarea name="interview_stages" rows="3" defaultValue={interviewStages.join("\n")} placeholder={"Recruiter Screen\nHiring Manager\nPanel\nFinal"} />
-                <span className="field-help">One stage per line.</span>
-              </label>
-              <label className="role-editor-wide">Internal notes
-                <textarea name="internal_notes" rows="3" defaultValue={job.internal_notes || ""} />
-              </label>
-            </div>
-          </section>
-
-          <section className="role-editor-section" id="role-public">
-            <div className="role-editor-section-heading">
-              <div>
-                <span>02</span>
-                <div>
-                  <h3>Public posting</h3>
-                  <p>The details candidates see before opening the full role.</p>
-                </div>
-              </div>
-              <span className="editor-visibility-badge public">Candidate-facing</span>
-            </div>
-
-            <div className="role-editor-grid">
-              <label className="role-editor-wide">Public title
-                <input name="public_title" defaultValue={publicPost.title || job.title || ""} required />
-              </label>
-              <label>Department
-                <input name="public_department" defaultValue={publicPost.department || job.department || ""} />
-              </label>
-              <label>Location <span className="required-label">Required</span>
-                <input name="location" defaultValue={publicPost.location || ""} placeholder="Austin, TX / Remote" required />
-              </label>
-              <label>Workplace
-                <select name="workplace" defaultValue={publicPost.workplace || ""}>
-                  <option value="">Select</option>
-                  <option value="Remote">Remote</option>
-                  <option value="Hybrid">Hybrid</option>
-                  <option value="On-site">On-site</option>
-                </select>
-              </label>
-              <label>Employment type
-                <select name="employment_type" defaultValue={publicPost.employment_type || ""}>
-                  <option value="">Select</option>
-                  <option value="Full-time">Full-time</option>
-                  <option value="Contract">Contract</option>
-                  <option value="Part-time">Part-time</option>
-                </select>
-              </label>
-              <label className="role-editor-wide">Compensation
-                <input name="compensation" defaultValue={publicPost.compensation || ""} placeholder="$180k–$220k base" />
-              </label>
-            </div>
-
-            {!publicPost.published && publishMissing.length ? (
-              <div className="publish-readiness">
-                <strong>Needed before publishing:</strong>
-                <span>{publishMissing.join(" · ")}</span>
-              </div>
-            ) : null}
-          </section>
-
-          <section className="role-editor-section" id="role-content">
-            <div className="role-editor-section-heading">
-              <div>
-                <span>03</span>
-                <div>
-                  <h3>Role description</h3>
-                  <p>Write and edit the candidate-facing content without leaving the page.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="role-content-stack">
-              <RichTextEditor
-                name="short_summary"
-                label="Short summary"
-                rows={3}
-                initialValue={publicPost.short_summary || ""}
-                placeholder="A concise overview shown on the Open Roles page."
-              />
-              <RichTextEditor
-                name="description"
-                label="About the role"
-                rows={6}
-                initialValue={publicPost.description || ""}
-              />
-              <RichTextEditor
-                name="responsibilities"
-                label="What you'll do"
-                rows={6}
-                initialValue={publicPost.responsibilities || ""}
-              />
-              <RichTextEditor
-                name="requirements"
-                label="What we're looking for"
-                rows={6}
-                initialValue={publicPost.requirements || ""}
-              />
-            </div>
-          </section>
-
-          <div className="role-editor-actions">
-            <div>
-              <span className={publicPost.published ? "status-pill published" : "status-pill"}>
-                {publicPost.published ? "Live" : "Draft"}
-              </span>
-              <span className="muted">{publicPost.published ? "Saving keeps the live posting updated." : "Save anytime without publishing."}</span>
-            </div>
-            <div>
-              <button type="submit" name="intent" value="save" className="secondary-button">Save changes</button>
-              {!publicPost.published ? (
-                <button type="submit" name="intent" value="publish">Save & Publish</button>
-              ) : null}
-            </div>
+      <section className="panel top-gap" id="pipeline">
+        <div className="section-heading">
+          <div>
+            <h2>Pipeline</h2>
+            <p className="muted">Drag candidates between stages. Changes save automatically.</p>
           </div>
-        </form>
-
-        {publicPost.published ? (
-          <div className="role-editor-live-actions">
-            <div>
-              <strong>Live posting controls</strong>
-              <p className="muted">These actions affect candidate visibility immediately.</p>
-            </div>
-            <div>
-              {publicPost.slug ? (
-                <Link className="secondary-button" href={`/jobs/${publicPost.slug}`} target="_blank">View live posting</Link>
-              ) : null}
-              <form action={setPublicPostingState}>
-                <input type="hidden" name="job_id" value={job.id} />
-                <input type="hidden" name="intent" value="unpublish" />
-                <button className="secondary-button" type="submit">Unpublish</button>
-              </form>
-              <form action={setPublicPostingState}>
-                <input type="hidden" name="job_id" value={job.id} />
-                <input type="hidden" name="intent" value="close" />
-                <button className="danger-button" type="submit">Close role</button>
-              </form>
-            </div>
-          </div>
-        ) : null}
+        </div>
+        <PipelineBoard applications={applications || []} interviewStages={interviewStages} />
       </section>
 
       <section className="panel top-gap">
@@ -442,15 +235,7 @@ export default async function JobDetailPage({ params, searchParams }) {
         </div>
       </section>
 
-      <section className="panel top-gap" id="pipeline">
-        <div className="section-heading">
-          <div>
-            <h2>Pipeline</h2>
-            <p className="muted">Drag candidates between stages. Changes save automatically.</p>
-          </div>
-        </div>
-        <PipelineBoard applications={applications || []} interviewStages={interviewStages} />
-      </section>
+
     </AdminShell>
   );
 }

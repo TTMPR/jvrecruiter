@@ -47,7 +47,7 @@ export default async function JobsPage() {
         ) : (
           <div className="job-list">
             {jobs.map((job) => {
-              const post = job.job_posts?.[0];
+              const post = Array.isArray(job.job_posts) ? job.job_posts[0] : job.job_posts;
               return (
                 <article className="job-list-card" key={job.id}>
                   <Link className="job-list-main" href={`/admin/jobs/${job.id}`}>

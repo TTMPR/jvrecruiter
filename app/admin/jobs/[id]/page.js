@@ -70,7 +70,7 @@ export default async function JobDetailPage({ params, searchParams }) {
         <div>
           <p className="eyebrow">Recruiting workspace</p>
           <h2>Candidate pipeline</h2>
-          <p className="muted">${(applications || []).length} candidate${(applications || []).length === 1 ? "" : "s"} in this search.</p>
+          <p className="muted">{(applications || []).length} candidate{(applications || []).length === 1 ? "" : "s"} in this search.</p>
         </div>
         <Link className="secondary-button" href={`/admin/jobs/${job.id}/edit`}>Edit JD</Link>
       </section>

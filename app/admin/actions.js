@@ -92,7 +92,7 @@ export async function createJob(formData) {
   if (postError) throw postError;
 
   revalidatePath("/admin/jobs");
-  redirect(`/admin/jobs/${job.id}`);
+  redirect(`/admin/jobs/${job.id}/edit`);
 }
 
 export async function addCandidate(formData) {
